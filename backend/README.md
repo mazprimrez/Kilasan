@@ -44,6 +44,21 @@ gcloud run services update journal-backend --region asia-southeast2 \
 `GET /health` answers `{"ok": true, "model": "…"}` without signing in, so you can see
 which model a deployment uses.
 
+## Model usage
+
+Every model call writes one JSON line to stdout (`event: "model_usage"`) with the
+feature (`transcribe`, `extract-text`, `recap`, `book-recap`), the model, the status
+the app got, the input, output and thinking tokens, and the latency. It never holds
+what was sent, what came back, or who asked.
+
+The **Journal backend: model usage** dashboard in Cloud Monitoring shows these lines
+by feature, next to Vertex AI's own per-model numbers. Its log-based metrics and layout
+live in `monitoring/` at the repo root. After changing them, run:
+
+```
+monitoring/apply.sh --account=<an account with access to day1sec>
+```
+
 ## Tests
 
 ```

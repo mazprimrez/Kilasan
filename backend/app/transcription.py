@@ -35,6 +35,7 @@ async def transcribe(audio: bytes, mime_type: str) -> str:
     if mime_type in _M4A_NAMES:
         mime_type = "audio/m4a"
     answer = await model.ask_json(
+        feature="transcribe",
         instruction=INSTRUCTION,
         parts=[model.file_part(audio, mime_type), model.text_part("Transcribe this voice note.")],
         schema=SCHEMA,

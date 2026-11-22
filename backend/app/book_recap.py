@@ -72,6 +72,7 @@ def check_request(request: object) -> dict:
 async def write_book_recap(request: dict) -> dict:
     """The summary and review ideas for [request], in the shape the app reads."""
     answer = await model.ask_json(
+        feature="book-recap",
         instruction=PROMPT_PATH.read_text(encoding="utf-8"),
         parts=[model.text_part(json.dumps(request, ensure_ascii=False))],
         schema=SCHEMA,

@@ -36,6 +36,7 @@ class FakeModel:
         self.answer: object = {"text": ""}
         self.finish_reason = types.FinishReason.STOP
         self.error: Exception | None = None
+        self.usage = SimpleNamespace(prompt_token_count=1200, candidates_token_count=80, thoughts_token_count=None)
         self.aio = SimpleNamespace(models=self)
 
     async def generate_content(self, *, model, contents, config):
@@ -43,10 +44,12 @@ class FakeModel:
         if self.error:
             raise self.error
         if self.answer is None:
-            return SimpleNamespace(candidates=[], prompt_feedback=SimpleNamespace(block_reason="SAFETY"), text=None)
+            return SimpleNamespace(
+                candidates=[], prompt_feedback=SimpleNamespace(block_reason="SAFETY"), text=None, usage_metadata=self.usage
+            )
         text = self.answer if isinstance(self.answer, str) else json.dumps(self.answer)
         candidate = SimpleNamespace(finish_reason=self.finish_reason)
-        return SimpleNamespace(candidates=[candidate], prompt_feedback=None, text=text)
+        return SimpleNamespace(candidates=[candidate], prompt_feedback=None, text=text, usage_metadata=self.usage)
 
 
 def settings(model: str = "test-model") -> Settings:

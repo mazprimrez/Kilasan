@@ -1,0 +1,19 @@
+description: Thinking tokens per model call, by feature and model. Billed as output.
+filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="journal-backend" AND jsonPayload.event="model_usage"'
+valueExtractor: EXTRACT(jsonPayload.thinking_tokens)
+metricDescriptor:
+  metricKind: DELTA
+  valueType: DISTRIBUTION
+  unit: "1"
+  displayName: Model thinking tokens
+  labels:
+  - key: feature
+  - key: model
+labelExtractors:
+  feature: EXTRACT(jsonPayload.feature)
+  model: EXTRACT(jsonPayload.model)
+bucketOptions:
+  exponentialBuckets:
+    numFiniteBuckets: 24
+    growthFactor: 2
+    scale: 1

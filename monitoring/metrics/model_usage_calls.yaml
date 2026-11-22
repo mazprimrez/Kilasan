@@ -1,0 +1,15 @@
+description: Model calls the journal backend made, by feature, model and the status the app got.
+filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="journal-backend" AND jsonPayload.event="model_usage"'
+metricDescriptor:
+  metricKind: DELTA
+  valueType: INT64
+  unit: "1"
+  displayName: Model calls
+  labels:
+  - key: feature
+  - key: model
+  - key: status
+labelExtractors:
+  feature: EXTRACT(jsonPayload.feature)
+  model: EXTRACT(jsonPayload.model)
+  status: EXTRACT(jsonPayload.status)

@@ -24,6 +24,7 @@ SCHEMA = {
 async def extract_text(image: bytes, mime_type: str) -> str:
     """The handwriting or print on [image]. Empty when the page is blank."""
     answer = await model.ask_json(
+        feature="extract-text",
         instruction=INSTRUCTION,
         parts=[model.file_part(image, mime_type), model.text_part("Type out this page.")],
         schema=SCHEMA,

@@ -1,0 +1,396 @@
+{
+  "displayName": "Journal backend: model usage",
+  "mosaicLayout": {
+    "columns": 48,
+    "tiles": [
+      {
+        "xPos": 0,
+        "yPos": 0,
+        "width": 48,
+        "height": 5,
+        "widget": {
+          "text": {
+            "content": "**Model usage for the journal backend.** The top half comes from Vertex AI and covers every Gemini call in the project, for as long as Vertex keeps it (6 weeks). The bottom half comes from the backend's own usage log (`event=\"model_usage\"`), splits it by feature, and starts from the deploy that added that log. Bars are per time step; the step grows as the time range does. Thinking tokens are billed as output. Defined in `monitoring/` in the repo; change it there and run `monitoring/apply.sh`.",
+            "format": "MARKDOWN",
+            "style": {
+              "padding": "P_MEDIUM"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 5,
+        "width": 12,
+        "height": 8,
+        "widget": {
+          "title": "Model calls, last 30 days",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(aiplatform_googleapis_com:publisher_online_serving_model_invocation_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[30d]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 12,
+        "yPos": 5,
+        "width": 12,
+        "height": 8,
+        "widget": {
+          "title": "Input tokens, last 30 days",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(aiplatform_googleapis_com:publisher_online_serving_token_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\",type=\"input\"}[30d]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 5,
+        "width": 12,
+        "height": 8,
+        "widget": {
+          "title": "Output tokens, last 30 days",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(aiplatform_googleapis_com:publisher_online_serving_token_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\",type=\"output\"}[30d]))"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 36,
+        "yPos": 5,
+        "width": 12,
+        "height": 8,
+        "widget": {
+          "title": "Failed model calls, last 30 days",
+          "scorecard": {
+            "timeSeriesQuery": {
+              "prometheusQuery": "sum(increase(aiplatform_googleapis_com:publisher_online_serving_model_invocation_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\",response_code!=\"200\"}[30d])) or vector(0)"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 13,
+        "width": 48,
+        "height": 4,
+        "widget": {
+          "title": "All models",
+          "sectionHeader": {
+            "subtitle": "From Vertex AI",
+            "dividerBelow": true
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 17,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Tokens by model and type",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (model_user_id, type) (increase(aiplatform_googleapis_com:publisher_online_serving_token_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "tokens",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 17,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Calls by model and response code",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (model_user_id, response_code) (increase(aiplatform_googleapis_com:publisher_online_serving_model_invocation_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "calls",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 33,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Latency by model (p50, p95)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(histogram_quantile(0.5, sum by (le, model_user_id) (rate(aiplatform_googleapis_com:publisher_online_serving_model_invocation_latencies_bucket{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[${__interval}]))), \"quantile\", \"p50\", \"\", \"\")"
+                }
+              },
+              {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(histogram_quantile(0.95, sum by (le, model_user_id) (rate(aiplatform_googleapis_com:publisher_online_serving_model_invocation_latencies_bucket{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[${__interval}]))), \"quantile\", \"p95\", \"\", \"\")"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "ms",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 33,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Calls by model and request size",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (input_token_size) (increase(aiplatform_googleapis_com:publisher_online_serving_model_invocation_count{monitored_resource=\"aiplatform.googleapis.com/PublisherModel\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "calls",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 49,
+        "width": 48,
+        "height": 4,
+        "widget": {
+          "title": "By feature",
+          "sectionHeader": {
+            "subtitle": "From the backend's usage log",
+            "dividerBelow": true
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 53,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Calls by feature",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (feature) (increase(logging_googleapis_com:user_model_usage_calls{monitored_resource=\"cloud_run_revision\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "calls",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 53,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Failed calls by feature and status",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (feature, status) (increase(logging_googleapis_com:user_model_usage_calls{monitored_resource=\"cloud_run_revision\",status!=\"200\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "calls",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 69,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Input tokens by feature",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (feature) (increase(logging_googleapis_com:user_model_usage_input_tokens_sum{monitored_resource=\"cloud_run_revision\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "tokens",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 69,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Output and thinking tokens by feature",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "STACKED_BAR",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "label_replace(sum by (feature) (increase(logging_googleapis_com:user_model_usage_output_tokens_sum{monitored_resource=\"cloud_run_revision\"}[${__interval}])), \"kind\", \"output\", \"\", \"\") or label_replace(sum by (feature) (increase(logging_googleapis_com:user_model_usage_thinking_tokens_sum{monitored_resource=\"cloud_run_revision\"}[${__interval}])), \"kind\", \"thinking\", \"\", \"\")"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "tokens",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 0,
+        "yPos": 85,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Average input tokens per call, by feature",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "sum by (feature) (increase(logging_googleapis_com:user_model_usage_input_tokens_sum{monitored_resource=\"cloud_run_revision\"}[${__interval}])) / sum by (feature) (increase(logging_googleapis_com:user_model_usage_input_tokens_count{monitored_resource=\"cloud_run_revision\"}[${__interval}]))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "tokens",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      },
+      {
+        "xPos": 24,
+        "yPos": 85,
+        "width": 24,
+        "height": 16,
+        "widget": {
+          "title": "Latency by feature (p95)",
+          "xyChart": {
+            "dataSets": [
+              {
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "minAlignmentPeriod": "3600s",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.95, sum by (le, feature) (rate(logging_googleapis_com:user_model_usage_latency_bucket{monitored_resource=\"cloud_run_revision\"}[${__interval}])))"
+                }
+              }
+            ],
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "yAxis": {
+              "label": "ms",
+              "scale": "LINEAR"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "labels": {
+    "journal-backend": ""
+  }
+}
