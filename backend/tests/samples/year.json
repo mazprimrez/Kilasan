@@ -1,52 +1,96 @@
 {
+  "schemaVersion": 2,
   "period": "year",
   "key": "year-2026",
   "start": "2026-01-01",
   "end": "2026-12-31",
   "name": "Eza",
   "language": "en-ID",
+  "entries": [
+    {
+      "date": "2026-01-01",
+      "weekday": "Thursday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Tahun baru. Resolusinya cuma satu: nulis tiap hari, walau cuma satu kalimat.",
+      "place": "Kemang, Jakarta Selatan"
+    },
+    {
+      "date": "2026-03-14",
+      "weekday": "Saturday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Diving pertama di Labuan Bajo. Lihat manta ray. I forgot to be scared.",
+      "place": "Labuan Bajo"
+    },
+    {
+      "date": "2026-06-02",
+      "weekday": "Tuesday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Project-nya dibatalin setelah tiga bulan. Kesel, tapi ya udah.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-08-17",
+      "weekday": "Monday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Lomba 17-an di komplek. Kalah balap karung, menang makan kerupuk.",
+      "place": "Kemang, Jakarta Selatan"
+    },
+    {
+      "date": "2026-10-25",
+      "weekday": "Sunday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Ulang tahun Ibu yang ke-60. She cried a little when we sang.",
+      "place": "Kemang, Jakarta Selatan"
+    }
+  ],
   "days": [
     {
       "date": "2026-01-01",
       "weekday": "Thursday",
       "mood": "GOOD",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "tahun baru",
-      "entries": ["Tahun baru. Resolusinya cuma satu: nulis tiap hari, walau cuma satu kalimat."]
+      "caption": "tahun baru"
     },
     {
       "date": "2026-03-14",
       "weekday": "Saturday",
       "mood": "GREAT",
       "place": "Labuan Bajo",
-      "caption": "first dive",
-      "entries": ["Diving pertama di Labuan Bajo. Lihat manta ray. I forgot to be scared."]
+      "caption": "first dive"
     },
     {
       "date": "2026-06-02",
       "weekday": "Tuesday",
       "mood": "BAD",
       "place": "Kuningan, Jakarta Selatan",
-      "caption": "",
-      "entries": ["Project-nya dibatalin setelah tiga bulan. Kesel, tapi ya udah."]
+      "caption": ""
     },
     {
       "date": "2026-08-17",
       "weekday": "Monday",
       "mood": "GOOD",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "17an",
-      "entries": ["Lomba 17-an di komplek. Kalah balap karung, menang makan kerupuk."]
+      "caption": "17an"
     },
     {
       "date": "2026-10-25",
       "weekday": "Sunday",
       "mood": "GREAT",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "ulang tahun Ibu",
-      "entries": ["Ulang tahun Ibu yang ke-60. She cried a little when we sang."]
+      "caption": "ulang tahun Ibu"
     }
   ],
-  "stats": {"daysKept": 301, "daysWritten": 164, "words": 21840, "averageMood": 3.6},
-  "previousStats": null
+  "stats": {
+    "daysKept": 301,
+    "daysWritten": 164,
+    "words": 21840,
+    "averageMood": 3.6
+  },
+  "previousStats": null,
+  "previousThreads": []
 }

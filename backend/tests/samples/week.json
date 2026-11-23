@@ -1,54 +1,102 @@
 {
+  "schemaVersion": 2,
   "period": "week",
   "key": "week-2026-11-09",
   "start": "2026-11-09",
   "end": "2026-11-15",
   "name": "Eza",
   "language": "en-ID",
+  "entries": [
+    {
+      "date": "2026-11-09",
+      "weekday": "Monday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Hari ini capek banget. Meeting dari pagi sampai sore, terus deadline-nya dimajuin ke Rabu. I didn't even have lunch properly.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-11-11",
+      "weekday": "Wednesday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Deck-nya akhirnya ke-submit jam 9 malam. Lega sih, tapi rasanya kosong aja.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-11-11",
+      "weekday": "Wednesday",
+      "time": "13:30",
+      "type": "WRITTEN",
+      "text": "Pulang naik MRT, dengerin podcast. Honestly I just want to sleep.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-11-13",
+      "weekday": "Friday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Makan malam sama Ibu di Kemang. Dia cerita soal kebun di rumah, and for the first time this week I wasn't thinking about work.",
+      "place": "Kemang, Jakarta Selatan"
+    },
+    {
+      "date": "2026-11-14",
+      "weekday": "Saturday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Lari pagi 5K di GBK, terus ngopi. It was the first quiet morning in weeks.",
+      "place": "Kemang, Jakarta Selatan"
+    },
+    {
+      "date": "2026-11-14",
+      "weekday": "Saturday",
+      "time": "13:30",
+      "type": "WRITTEN",
+      "text": "Sore beresin kamar sambil dengerin lagu lama.",
+      "place": "Kemang, Jakarta Selatan"
+    }
+  ],
   "days": [
     {
       "date": "2026-11-09",
       "weekday": "Monday",
       "mood": "BAD",
       "place": "Kuningan, Jakarta Selatan",
-      "caption": "deadline",
-      "entries": [
-        "Hari ini capek banget. Meeting dari pagi sampai sore, terus deadline-nya dimajuin ke Rabu. I didn't even have lunch properly."
-      ]
+      "caption": "deadline"
     },
     {
       "date": "2026-11-11",
       "weekday": "Wednesday",
       "mood": "NEUTRAL",
       "place": "Kuningan, Jakarta Selatan",
-      "caption": "",
-      "entries": [
-        "Deck-nya akhirnya ke-submit jam 9 malam. Lega sih, tapi rasanya kosong aja.",
-        "Pulang naik MRT, dengerin podcast. Honestly I just want to sleep."
-      ]
+      "caption": ""
     },
     {
       "date": "2026-11-13",
       "weekday": "Friday",
       "mood": "GOOD",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "makan malam sama Ibu",
-      "entries": [
-        "Makan malam sama Ibu di Kemang. Dia cerita soal kebun di rumah, and for the first time this week I wasn't thinking about work."
-      ]
+      "caption": "makan malam sama Ibu"
     },
     {
       "date": "2026-11-14",
       "weekday": "Saturday",
       "mood": "GREAT",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "coffee before the run",
-      "entries": [
-        "Lari pagi 5K di GBK, terus ngopi. It was the first quiet morning in weeks.",
-        "Sore beresin kamar sambil dengerin lagu lama."
-      ]
+      "caption": "coffee before the run"
     }
   ],
-  "stats": {"daysKept": 6, "daysWritten": 4, "words": 118, "averageMood": 3.5},
-  "previousStats": {"daysKept": 4, "daysWritten": 3, "words": 72, "averageMood": 3.0}
+  "stats": {
+    "daysKept": 6,
+    "daysWritten": 4,
+    "words": 118,
+    "averageMood": 3.5
+  },
+  "previousStats": {
+    "daysKept": 4,
+    "daysWritten": 3,
+    "words": 72,
+    "averageMood": 3.0
+  },
+  "previousThreads": []
 }

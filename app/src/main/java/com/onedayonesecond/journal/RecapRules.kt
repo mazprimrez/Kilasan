@@ -3,6 +3,7 @@ package com.onedayonesecond.journal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 
 /**
  * When recaps are written and whether there is enough to write one from. Pure, so it
@@ -44,6 +45,10 @@ object RecapRules {
         val year = if (isDue(thisYear, now)) thisYear else thisYear.previous()
         return listOf(week, month, year)
     }
+
+    /** True for a recap written, at [createdAtMillis], before its period's letter was due. */
+    fun writtenEarly(period: RecapPeriod, createdAtMillis: Long, zone: ZoneId = ZoneId.systemDefault()): Boolean =
+        createdAtMillis < dueAt(period).atZone(zone).toInstant().toEpochMilli()
 
     /** When the next recap of the period containing [today] arrives, for "Letter arrives on…". */
     fun arrives(period: RecapPeriod): LocalDate = dueAt(period).toLocalDate()

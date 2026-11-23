@@ -43,6 +43,15 @@ class RecapGenerator(
     /** Keys of the recaps being written right now, for the "still writing" state. */
     val writing: StateFlow<Set<String>> = _writing.asStateFlow()
 
+    private val _rewriteFailures = MutableStateFlow<Map<String, Outcome>>(emptyMap())
+
+    /**
+     * Recaps that already existed, were asked to be written again, and could not be.
+     * The old recap stays; the page says why and offers to try again. Cleared when the
+     * next attempt starts. Kept for as long as the app runs.
+     */
+    val rewriteFailures: StateFlow<Map<String, Outcome>> = _rewriteFailures.asStateFlow()
+
     val isConfigured: Boolean get() = ai.isConfigured
 
     /** Every day from [start] to [end] that has a clip, a mood, a place or an entry. */
@@ -65,34 +74,48 @@ class RecapGenerator(
     }
 
     /**
-     * Writes [period]'s recap. Safe to call again: a second call while one is running
-     * for the same period returns straight away, and a recap that already exists is
-     * written afresh only because the user asked for it.
+     * Writes [period]'s recap, in place of the one already there if there is one (which
+     * is kept for Undo). Safe to call again: a second call while one is running for the
+     * same period returns straight away. A recap that already exists is replaced only
+     * when it is written successfully; until then, and if it fails, the old one stays.
      */
     suspend fun generate(period: RecapPeriod): Outcome {
         val key = period.key
         var claimed = false
         _writing.update { if (key in it) it else (it + key).also { claimed = true } }
         if (!claimed) return Outcome.Written
+        _rewriteFailures.update { it - key }
 
         return try {
+            val existed = journal.recap(key) != null
             val outcome = write(period)
-            prefs.setRecapFailure(
-                key,
-                when (outcome) {
-                    Outcome.Offline -> RecapFailure(RecapFailureReason.OFFLINE, now())
-                    Outcome.NotSetUp -> RecapFailure(RecapFailureReason.NOT_SET_UP, now())
-                    is Outcome.Failed -> RecapFailure(RecapFailureReason.FAILED, now())
-                    else -> null
-                },
-            )
+            if (existed) {
+                if (outcome != Outcome.Written) _rewriteFailures.update { it + (key to outcome) }
+            } else {
+                prefs.setRecapFailure(
+                    key,
+                    when (outcome) {
+                        Outcome.Offline -> RecapFailure(RecapFailureReason.OFFLINE, now())
+                        Outcome.NotSetUp -> RecapFailure(RecapFailureReason.NOT_SET_UP, now())
+                        is Outcome.Failed -> RecapFailure(RecapFailureReason.FAILED, now())
+                        else -> null
+                    },
+                )
+            }
             outcome
         } finally {
             _writing.update { it - key }
         }
     }
 
+    /** Hides the reason a rewrite failed, once it has been read or the user moved on. */
+    fun dismissRewriteFailure(key: String) {
+        _rewriteFailures.update { it - key }
+    }
+
     private suspend fun write(period: RecapPeriod): Outcome {
+        val entries = journal.entriesBetween(period.start, period.end)
+        val metas = journal.metaBetween(period.start, period.end)
         val days = summaries(period.start, period.end)
         val written = days.count { it.entryCount > 0 }
         if (!RecapRules.hasEnough(written)) return Outcome.NotEnough(written)
@@ -100,10 +123,16 @@ class RecapGenerator(
 
         val before = period.previous()
         val previousDays = summaries(before.start, before.end)
+        val previousStats = previousDays.takeIf { it.isNotEmpty() }?.let(PeriodStats::of)
+        val previousLetter = journal.recap(before.key)
+            ?.takeIf { it.schemaVersion >= Recap.LAYOUT_V2 }
+            ?.let { RecapLetter.decode(it.json) }
         val request = RecapRequest.build(
             period = period,
+            entries = entries,
             days = days,
-            previous = previousDays.takeIf { it.isNotEmpty() }?.let(PeriodStats::of),
+            previous = previousStats,
+            previousThreads = previousLetter?.threads.orEmpty(),
             name = prefs.name.first(),
         )
 
@@ -121,23 +150,66 @@ class RecapGenerator(
             return Outcome.Failed(e.message ?: "The letter could not be written.")
         } ?: return Outcome.Failed("The letter came back empty.")
 
-        // The quote must be the user's own words. If the model's is not in the entries,
-        // one is taken from them directly.
+        // The backend already holds the quote to the entries; this is the second guard.
+        // If it is not in them, one is taken from them directly.
         val quote = JournalMath.verifyQuote(draft.quote, days, draft.quoteDate)
             ?: JournalMath.fallbackQuote(days)
-        val content = draft.content.copy(
-            places = if (period is RecapPeriod.Year) JournalMath.daysPerCity(days.map { it.place }) else emptyList(),
-        )
-        journal.saveRecap(
+        val letter = withNumbers(draft.letter, period, days, previousStats, previousLetter, earliest())
+        journal.replaceRecap(
             Recap(
                 key = period.key,
                 title = draft.title,
                 quote = quote?.first.orEmpty(),
                 quoteDate = quote?.second ?: period.end,
-                json = content.encode(),
+                json = letter.encode(),
                 createdAt = now(),
+                schemaVersion = Recap.LAYOUT_V2,
+                sourceHash = RecapSource.hash(entries, metas.associate { it.date to it.mood }),
+                entryCount = entries.size,
             ),
         )
         return Outcome.Written
+    }
+
+    /** The first day anything was kept or written, to tell a first week from a gap. */
+    private suspend fun earliest(): LocalDate? =
+        listOfNotNull(journal.earliestEntryDate(), clips.earliestDate()).minOrNull()
+
+    companion object {
+
+        /**
+         * Puts the phone's own numbers into a letter the model wrote: the stats of this
+         * period and the one before, days per place for a year, and how many days each
+         * person came up on (counted in the entries; the model's estimate is kept only for
+         * topics, and for a name that does not appear word for word).
+         */
+        fun withNumbers(
+            letter: RecapLetter,
+            period: RecapPeriod,
+            days: List<DaySummary>,
+            previousStats: PeriodStats?,
+            previousLetter: RecapLetter?,
+            earliest: LocalDate?,
+        ): RecapLetter {
+            fun compare(mentions: List<Mention>, before: List<Mention>?, recount: Boolean): List<Mention> {
+                val earlier = before?.associate { it.name.lowercase() to it.count }
+                return mentions.map { mention ->
+                    val counted = if (recount) JournalMath.daysMentioning(mention.name, days) else 0
+                    mention.copy(
+                        count = if (counted > 0) counted else mention.count,
+                        previous = earlier?.let { it[mention.name.lowercase()] ?: 0 },
+                    )
+                }.sortedByDescending { it.count }
+            }
+            val longer = period !is RecapPeriod.Week
+            return letter.copy(
+                topPeople = if (longer) compare(letter.topPeople, previousLetter?.topPeople, recount = true) else emptyList(),
+                topTopics = if (longer) compare(letter.topTopics, previousLetter?.topTopics, recount = false) else emptyList(),
+                places = if (period is RecapPeriod.Year) JournalMath.daysPerCity(days.map { it.place }) else emptyList(),
+                stats = PeriodStats.of(days),
+                previousStats = previousStats,
+                hadEarlier = earliest != null && earliest.isBefore(period.start),
+            )
+        }
     }
 }

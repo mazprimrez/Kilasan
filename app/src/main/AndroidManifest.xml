@@ -55,6 +55,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Stop, on the notification shown while past recaps are being written. -->
+        <receiver
+            android:name=".work.StopBackfillReceiver"
+            android:exported="false" />
+
         <!-- Lets the phone's camera app save a photo straight into the app's
              scratch folder when a photo is taken for the journal. -->
         <provider

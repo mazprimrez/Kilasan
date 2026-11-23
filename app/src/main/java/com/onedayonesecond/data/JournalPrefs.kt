@@ -23,6 +23,25 @@ enum class RecapFailureReason { OFFLINE, FAILED, NOT_SET_UP }
 
 data class RecapFailure(val reason: RecapFailureReason, val at: Long)
 
+/**
+ * Where "Write recaps for past weeks and months" stands. [queue] holds the recap keys
+ * still to write, oldest first; a key in [forced] is written even if a recap exists
+ * (one in the old layout, or this year so far). [waiting] says why it is paused, if it is.
+ */
+data class BackfillProgress(
+    val total: Int = 0,
+    val written: Int = 0,
+    val skipped: Int = 0,
+    val queue: List<String> = emptyList(),
+    val forced: Set<String> = emptySet(),
+    val waiting: String? = null,
+) {
+    val running: Boolean get() = queue.isNotEmpty()
+
+    /** How many have been dealt with, written or not. */
+    val handled: Int get() = written + skipped
+}
+
 /** A thought that was being written when "Log a thought" was closed, kept for next time. */
 data class ThoughtDraft(
     val page: Int,
@@ -106,6 +125,55 @@ class JournalPrefs(context: Context) {
         dataStore.edit { if (failure == null) it.remove(key) else it[key] = "${failure.reason.name}|${failure.at}" }
     }
 
+    val backfill: Flow<BackfillProgress> = safeData.map { prefs ->
+        BackfillProgress(
+            total = prefs[BACKFILL_TOTAL] ?: 0,
+            written = prefs[BACKFILL_WRITTEN] ?: 0,
+            skipped = prefs[BACKFILL_SKIPPED] ?: 0,
+            queue = prefs[BACKFILL_QUEUE].orEmpty().split(',').filter { it.isNotBlank() },
+            forced = prefs[BACKFILL_FORCED].orEmpty().split(',').filter { it.isNotBlank() }.toSet(),
+            waiting = prefs[BACKFILL_WAITING],
+        )
+    }
+
+    /** Starts a new run over [queue], forgetting the counts of the last one. */
+    suspend fun startBackfill(queue: List<String>, forced: Set<String>) {
+        dataStore.edit {
+            it[BACKFILL_QUEUE] = queue.joinToString(",")
+            it[BACKFILL_FORCED] = forced.joinToString(",")
+            it[BACKFILL_TOTAL] = queue.size
+            it[BACKFILL_WRITTEN] = 0
+            it[BACKFILL_SKIPPED] = 0
+            it.remove(BACKFILL_WAITING)
+        }
+    }
+
+    /** Takes [key] off the front of the queue, counting it as written or skipped. */
+    suspend fun advanceBackfill(key: String, written: Boolean) {
+        dataStore.edit { prefs ->
+            val queue = prefs[BACKFILL_QUEUE].orEmpty().split(',').filter { it.isNotBlank() && it != key }
+            prefs[BACKFILL_QUEUE] = queue.joinToString(",")
+            if (written) {
+                prefs[BACKFILL_WRITTEN] = (prefs[BACKFILL_WRITTEN] ?: 0) + 1
+            } else {
+                prefs[BACKFILL_SKIPPED] = (prefs[BACKFILL_SKIPPED] ?: 0) + 1
+            }
+            prefs.remove(BACKFILL_WAITING)
+        }
+    }
+
+    suspend fun setBackfillWaiting(reason: String?) {
+        dataStore.edit { if (reason == null) it.remove(BACKFILL_WAITING) else it[BACKFILL_WAITING] = reason }
+    }
+
+    /** Stops a run: what is left is dropped, the counts stay so the page can say what was done. */
+    suspend fun stopBackfill() {
+        dataStore.edit {
+            it[BACKFILL_QUEUE] = ""
+            it.remove(BACKFILL_WAITING)
+        }
+    }
+
     /** The draft kept for a book, or null. One per book, so switching books does not lose either. */
     suspend fun thoughtDraft(bookId: Long): ThoughtDraft? {
         val stored = safeData.first()[stringPreferencesKey(DRAFT_PREFIX + bookId)] ?: return null
@@ -154,5 +222,11 @@ class JournalPrefs(context: Context) {
         private val NAME = stringPreferencesKey("name")
         private val LOCATION_ASKED = booleanPreferencesKey("location_asked")
         private const val FAILURE_PREFIX = "recap_failure_"
+        private val BACKFILL_QUEUE = stringPreferencesKey("backfill_queue")
+        private val BACKFILL_FORCED = stringPreferencesKey("backfill_forced")
+        private val BACKFILL_TOTAL = intPreferencesKey("backfill_total")
+        private val BACKFILL_WRITTEN = intPreferencesKey("backfill_written")
+        private val BACKFILL_SKIPPED = intPreferencesKey("backfill_skipped")
+        private val BACKFILL_WAITING = stringPreferencesKey("backfill_waiting")
     }
 }

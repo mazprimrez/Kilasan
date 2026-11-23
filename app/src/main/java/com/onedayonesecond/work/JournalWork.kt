@@ -96,7 +96,10 @@ class RecapWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
 
         var offline = false
         for (period in RecapRules.latestDue(LocalDateTime.now())) {
-            if (container.journal.recap(period.key) != null) continue
+            val existing = container.journal.recap(period.key)
+            // A letter written before its period was over (the year so far, asked for in
+            // Settings) is replaced by the real one once it is due.
+            if (existing != null && !RecapRules.writtenEarly(period, existing.createdAt)) continue
             if (generator.generate(period) == RecapGenerator.Outcome.Offline) offline = true
         }
         // The nightly check itself always succeeds, so the daily rhythm is kept; a

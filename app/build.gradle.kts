@@ -32,6 +32,13 @@ android {
         versionName = "0.1.0"
 
         buildConfigField("String", "JOURNAL_BACKEND_URL", localString("journal.backend.url"))
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // The migration test opens each exported schema version, so they ship with it.
+    sourceSets {
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     buildTypes {
@@ -116,4 +123,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
 }

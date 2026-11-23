@@ -54,6 +54,10 @@ interface JournalDao {
     @Query("SELECT MIN(date) FROM entries")
     suspend fun earliestEntryDate(): LocalDate?
 
+    /** Every day that has at least one entry, for working out which recaps can be written. */
+    @Query("SELECT DISTINCT date FROM entries ORDER BY date ASC")
+    suspend fun entryDates(): List<LocalDate>
+
     @Insert
     suspend fun insertEntry(entry: Entry): Long
 
@@ -64,16 +68,21 @@ interface JournalDao {
     @Query("UPDATE entries SET placeName = :place WHERE id = :id")
     suspend fun setEntryPlace(id: Long, place: String?)
 
-    /** The user's own words. They settle the matter: nothing is typed out over them. */
-    @Query("UPDATE entries SET text = :text, processing = 'DONE' WHERE id = :id")
-    suspend fun setEntryTextByHand(id: Long, text: String)
+    // Every change to an entry's words also moves its updatedAt, which is how a recap
+    // knows it was written from an older version of the period.
 
-    @Query("UPDATE entries SET text = :text WHERE id = :id")
-    suspend fun clearEntryText(id: Long, text: String)
+    /** The user's own words. They settle the matter: nothing is typed out over them. */
+    @Query("UPDATE entries SET text = :text, processing = 'DONE', updatedAt = :now WHERE id = :id")
+    suspend fun setEntryTextByHand(id: Long, text: String, now: Long)
+
+    @Query("UPDATE entries SET text = :text, updatedAt = :now WHERE id = :id")
+    suspend fun clearEntryText(id: Long, text: String, now: Long)
 
     /** Typed-out words. Ignored if the entry is already done, because then the user typed first. */
-    @Query("UPDATE entries SET text = :text, processing = 'DONE' WHERE id = :id AND processing != 'DONE'")
-    suspend fun finishTypingOut(id: Long, text: String): Int
+    @Query(
+        "UPDATE entries SET text = :text, processing = 'DONE', updatedAt = :now WHERE id = :id AND processing != 'DONE'",
+    )
+    suspend fun finishTypingOut(id: Long, text: String, now: Long): Int
 
     /** Never moves a finished entry back to waiting or failed. */
     @Query("UPDATE entries SET processing = :state WHERE id = :id AND processing != 'DONE'")

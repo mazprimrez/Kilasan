@@ -104,79 +104,101 @@ Empty text means nothing was written on the page.
 
 ### `POST /v1/recap`
 
-Body, `application/json`:
+Recap layout 2 (`schemaVersion: 2`). Body, `application/json`:
 
 ```json
 {
+  "schemaVersion": 2,
   "period": "week",
-  "key": "week-2026-11-09",
-  "start": "2026-11-09",
-  "end": "2026-11-15",
+  "key": "week-2026-11-16",
+  "start": "2026-11-16",
+  "end": "2026-11-22",
   "name": "Eza",
   "language": "en-ID",
-  "days": [
+  "entries": [
     {
-      "date": "2026-11-14",
+      "date": "2026-11-21",
       "weekday": "Saturday",
-      "mood": "GOOD",
-      "place": "Kemang, Jakarta Selatan",
-      "caption": "coffee before work",
-      "entries": ["Coffee before work. It was the first quiet morning in weeks."]
+      "time": "16:50",
+      "type": "WRITTEN",
+      "text": "Akhirnya ngomong di Tech Cantik! Tangan gemeteran di 2 menit pertama, terus lancar.",
+      "place": "Kemang, Jakarta Selatan"
     }
   ],
-  "stats": {"daysKept": 6, "daysWritten": 5, "words": 812, "averageMood": 3.8},
-  "previousStats": {"daysKept": 4, "daysWritten": 3, "words": 420, "averageMood": 3.1}
+  "days": [
+    {"date": "2026-11-21", "weekday": "Saturday", "mood": "GREAT", "place": "Kemang, Jakarta Selatan", "caption": "Tech Cantik!"}
+  ],
+  "stats": {"daysKept": 7, "daysWritten": 7, "words": 412, "averageMood": 3.9},
+  "previousStats": {"daysKept": 4, "daysWritten": 4, "words": 70, "averageMood": 3.5},
+  "previousThreads": [{"title": "Deadline deck", "line": "Dimajuin Monday, ke-submit Wednesday."}]
 }
 ```
 
-- `period` is `week`, `month` or `year`.
-- `days` lists only days that have something. `mood` is `ROUGH`, `BAD`, `NEUTRAL`,
-  `GOOD`, `GREAT` or `null`; `place` may be `null`; `caption` may be empty.
-- `entries` are the words of that day's entries, oldest first: written text,
-  transcripts and typed-out pages. Each is cut to 4000 characters for a week, 1500
-  for a month and 400 for a year.
-- `averageMood` is the mean on a 1 (rough) to 5 (great) scale, or `null`.
+- `period` is `week`, `month` or `year`; `start` and `end` are the period's first and
+  last day.
+- `entries` are every entry of the period, oldest first. `type` is `WRITTEN`, `VOICE`,
+  `NOTEBOOK_PHOTO`, `PEN` or `PHOTO`; `text` is the written text, transcript or
+  typed-out page (empty for a photo), cut to 4000 characters for a week, 1500 for a
+  month and 400 for a year. `place` may be `null`.
+- `days` lists only days that have something: the mood (`ROUGH` … `GREAT` or `null`),
+  place and the second's caption.
+- `stats` and `previousStats` are counted on the phone and only give the model
+  context; the recap's numbers are the phone's (see "What the app checks").
   `previousStats` is `null` when there was nothing in the period before.
-- `name` may be empty.
+- `previousThreads` are the threads of the previous period's recap if it is in
+  layout 2, so "On your mind" can say what carried over.
 
 Reply:
 
 ```json
 {
-  "title": "A quieter week",
-  "quote": "It was the first quiet morning in weeks.",
-  "quoteDate": "2026-11-14",
-  "whatHappened": [{"date": "2026-11-14", "text": "A slow morning before work."}],
+  "schemaVersion": 2,
+  "title": "Minggu Tech Cantik",
+  "quote": {"text": "Akhirnya ngomong di Tech Cantik!", "date": "2026-11-21"},
+  "howYouFelt": {"text": "Dua hari gym (Mon, Tue) jadi mood terbaik; Wednesday, after 4 hours of sleep, the lowest.",
+                 "days": ["2026-11-16", "2026-11-17", "2026-11-18"]},
+  "threads": [{"title": "Tech Cantik", "line": "Prepared Wed, rehearsed Thu, spoke Sat, wrote about it Sun.",
+               "days": ["2026-11-18", "2026-11-19", "2026-11-21", "2026-11-22"]}],
+  "dayByDay": [{"date": "2026-11-16", "line": "Gym pagi, refactor payment module."}],
+  "wins": [{"text": "Spoke at Tech Cantik.", "date": "2026-11-21"}],
+  "stillOpen": [{"text": "Review PR Raka belum dikerjain.", "date": "2026-11-19"}],
   "note": "One short paragraph, without a greeting.",
-  "changes": [{"direction": "up", "text": "You wrote on 5 days, up from 3."}],
-  "tries": ["Write one line before bed.", "Take Wednesday's walk again."]
+  "question": "You wrote about comfort vs adrenaline. Which one were you looking for this week?",
+  "topPeople": [],
+  "topTopics": []
 }
 ```
 
-`title` and `note` are required; without them the app treats the recap as failed.
-`direction` is `up`, `down` or `same`.
+`topPeople` and `topTopics` (`{name, count}`) are only filled for a month or a year;
+`dayByDay` is empty for a year. Before it answers, the backend
+(`backend/app/recap.py`):
+
+- **parses** the model's answer with a Pydantic model. If it does not parse (or
+  `title`, `note` or `question` is blank) it asks once more with the errors fed back,
+  then answers 502;
+- **checks the quote**: it must be an exact, continuous piece of one entry's text on
+  `quote.date` (only whitespace may differ, and quotation marks around it are
+  ignored). If not, it asks once more with that error fed back; if the quote is still
+  wrong, it picks a sentence from the entries itself;
+- **checks every date**: a day in `howYouFelt.days`, a thread's `days`, `dayByDay`,
+  `wins` and `stillOpen` must be inside the period and a day with entries. Days that
+  are not are removed; a thread with no day left, and a win or open item with a bad
+  date, is dropped;
+- cuts threads to 4, wins to 3, open items to 4, people and topics to 5.
+
+So one recap is at most three model calls.
 
 ### The recap prompt
 
 The prompt is a file of its own, [`backend/prompts/recap.md`](../backend/prompts/recap.md),
-so it can be tuned without touching code. It asks for what the design asks for, in
-this order:
-
-1. **What happened**: factual, short, dated lines. Nothing that is not in the entries.
-2. **A note**: warm and non-judging, in the voice of a psychologist. One short
-   paragraph. No greeting: the app writes "Dear Eza," itself.
-3. **One quote**, taken **word for word** from the user's own entries, with the date
-   of the entry it came from.
-4. **What changed** against the previous period, with the numbers from `stats` and
-   `previousStats`.
-5. **Two gentle suggestions.** Not tasks, not a checklist.
-
-Reply in the language the entries are written in (`language` is the phone's setting,
-as a fallback), and return exactly the JSON above.
-
-The backend holds the model to that JSON shape, cuts the suggestions to two, and
-checks the quote: if the words are not in the entries it sends an empty `quote` and
-`quoteDate`, and if they are in another day's entries it corrects the date.
+so it can be tuned without touching code. Its rules: show what reading day by day
+does not (patterns, threads, things left open), be specific over generic, invent
+nothing, no diagnosis, no to-dos, and write in plain English even though the entries
+mix Indonesian and English (the quote stays word for word, untranslated). "How you felt" only states a pattern that holds on two or more days,
+or says the period was steady. The note must mention at least two specific things
+from the period and may name a pattern the writer might not want to see; lines that
+would fit anyone's week ("it's okay to be tired") are ruled out. The question is open and
+built from something they wrote. The quote is never translated.
 
 ### `POST /v1/book-recap`
 
@@ -252,15 +274,22 @@ The backend does not leave those rules to the prompt alone:
 
 ## What the app checks for itself
 
-- **The quote.** The model is asked for the user's own words, but models paraphrase.
-  The app looks for the quote in that period's entries (ignoring case, spacing and
-  quotation marks). If it is not there, the app takes a sentence from the entries
-  itself. A recap never shows words the user did not write. (`JournalMath.verifyQuote`.)
+- **The quote**, a second time. The app looks for the backend's quote in that
+  period's entries (ignoring case, spacing and quotation marks). If it is not there,
+  the app takes a sentence from the entries itself. A recap never shows words the
+  user did not write. (`JournalMath.verifyQuote`.)
+- **Every number.** "Since last week" is worked out on the phone from its own counts
+  (`SinceLast`): "went up from 3 to 7", "went down from 7 to 5", "stayed at 7", and no
+  comparison at all when the period before had no days kept ("Your first week in
+  Kilasan." with this period's totals). Average mood is a face and a word ("mostly
+  good"), never a decimal. The counts are stored with the recap when it is written.
+- **People's counts** are recounted on the phone: the days whose entries contain the
+  name as a whole word. A topic keeps the model's count. The arrow compares with the
+  previous period's recap.
 - **Places.** "Where you were" on the year recap is counted on the phone from each
   day's place. Anything the model says about places is dropped.
-- **Suggestions** are cut to two.
 - **Enough to write from.** No request is sent for a period with fewer than three
-  days that have an entry.
+  days that have an entry (the same for a week, a month and a year).
 
 For a book's summary the phone does the same checks the backend does, and does not
 take the backend's word for them (`books/BookSummaryContent.kt`, `BookSummaryTest`):
@@ -301,10 +330,23 @@ is due and missing (`RecapRules`):
 | Month | the 1st of the next month |
 | Year | 31 December, 21:00 |
 
-It also catches up the newest one of each kind after a night the phone was off. If
-the phone is offline that night the failure is recorded (the recap page then says
-"Your phone was offline on Sunday night. Your entries are safe.") and a second job
-waits for a connection. "Write the letter now" on a recap page does the same by hand.
+It also catches up the newest one of each kind after a night the phone was off, and
+replaces a recap that was written before its period was due (the year so far, see
+below). If the phone is offline that night the failure is recorded (the recap page
+then says "Your phone was offline on Sunday night. Your entries are safe.") and a
+second job waits for a connection. "Write the letter now" on a recap page does the
+same by hand.
+
+**Write this recap again.** From the ⋯ menu on a recap. The old letter stays on screen
+until the new one is saved, and is kept (one version, `Recap.previousJson`) so Undo
+can put it back. If it fails, the old letter stays and the page says why.
+
+**Past weeks and months** (Settings → Recaps). Lists the due periods with enough
+entries and no recap, the recaps in the old layout (opt-in), and this year so far
+(opt-in), then writes them oldest first as a chain of one-period WorkManager jobs, 5
+seconds apart, each waiting for a connection and retrying with backoff
+(`work/RecapBackfillWorker.kt`). Progress shows in Settings and in a notification
+with Stop; stopping keeps what was written.
 
 ## Without a backend
 

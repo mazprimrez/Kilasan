@@ -1,52 +1,101 @@
 {
+  "schemaVersion": 2,
   "period": "month",
   "key": "month-2026-10",
   "start": "2026-10-01",
   "end": "2026-10-31",
   "name": "Eza",
   "language": "en-ID",
+  "entries": [
+    {
+      "date": "2026-10-03",
+      "weekday": "Saturday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Ke Bandung sama anak-anak kantor lama. Dingin, hujan, tapi seru. We laughed until midnight.",
+      "place": "Bandung"
+    },
+    {
+      "date": "2026-10-08",
+      "weekday": "Thursday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Demam dari semalam. Izin kerja, tidur seharian. I hate being sick alone.",
+      "place": null
+    },
+    {
+      "date": "2026-10-12",
+      "weekday": "Monday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Balik kerja. Inbox 200 email. Pelan-pelan aja, satu-satu.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-10-19",
+      "weekday": "Monday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Presentasi ke klien lancar. Bos bilang good job, which honestly made my whole day.",
+      "place": "Kuningan, Jakarta Selatan"
+    },
+    {
+      "date": "2026-10-25",
+      "weekday": "Sunday",
+      "time": "08:30",
+      "type": "WRITTEN",
+      "text": "Ulang tahun Ibu yang ke-60. Semua kumpul di rumah, aku yang masak rendang. She cried a little when we sang.",
+      "place": "Kemang, Jakarta Selatan"
+    }
+  ],
   "days": [
     {
       "date": "2026-10-03",
       "weekday": "Saturday",
       "mood": "GOOD",
       "place": "Bandung",
-      "caption": "Bandung trip",
-      "entries": ["Ke Bandung sama anak-anak kantor lama. Dingin, hujan, tapi seru. We laughed until midnight."]
+      "caption": "Bandung trip"
     },
     {
       "date": "2026-10-08",
       "weekday": "Thursday",
       "mood": "ROUGH",
       "place": null,
-      "caption": "",
-      "entries": ["Demam dari semalam. Izin kerja, tidur seharian. I hate being sick alone."]
+      "caption": ""
     },
     {
       "date": "2026-10-12",
       "weekday": "Monday",
       "mood": "NEUTRAL",
       "place": "Kuningan, Jakarta Selatan",
-      "caption": "back to work",
-      "entries": ["Balik kerja. Inbox 200 email. Pelan-pelan aja, satu-satu."]
+      "caption": "back to work"
     },
     {
       "date": "2026-10-19",
       "weekday": "Monday",
       "mood": "GOOD",
       "place": "Kuningan, Jakarta Selatan",
-      "caption": "",
-      "entries": ["Presentasi ke klien lancar. Bos bilang good job, which honestly made my whole day."]
+      "caption": ""
     },
     {
       "date": "2026-10-25",
       "weekday": "Sunday",
       "mood": "GREAT",
       "place": "Kemang, Jakarta Selatan",
-      "caption": "ulang tahun Ibu",
-      "entries": ["Ulang tahun Ibu yang ke-60. Semua kumpul di rumah, aku yang masak rendang. She cried a little when we sang."]
+      "caption": "ulang tahun Ibu"
     }
   ],
-  "stats": {"daysKept": 22, "daysWritten": 5, "words": 96, "averageMood": 3.4},
-  "previousStats": {"daysKept": 18, "daysWritten": 7, "words": 140, "averageMood": 3.1}
+  "stats": {
+    "daysKept": 22,
+    "daysWritten": 5,
+    "words": 96,
+    "averageMood": 3.4
+  },
+  "previousStats": {
+    "daysKept": 18,
+    "daysWritten": 7,
+    "words": 140,
+    "averageMood": 3.1
+  },
+  "previousThreads": []
 }

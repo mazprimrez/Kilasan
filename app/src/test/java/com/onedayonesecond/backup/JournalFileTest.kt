@@ -64,6 +64,61 @@ class JournalFileTest {
         assertNull(JournalFile.decodeRecap("{}".toByteArray()))
     }
 
+    @Test
+    fun `a recap in the new layout keeps its layout, fingerprint, count and the version Undo would restore`() {
+        val previous = Recap(
+            key = "week-2026-11-16",
+            title = "Old",
+            quote = "q",
+            quoteDate = date,
+            json = """{"note":"old"}""",
+            createdAt = 1,
+        )
+        val recap = previous.copy(
+            title = "New",
+            json = """{"note":"new","question":"Q?"}""",
+            createdAt = 2,
+            schemaVersion = Recap.LAYOUT_V2,
+            sourceHash = "abc123",
+            entryCount = 9,
+            previousJson = com.onedayonesecond.data.RecapRows.encode(previous),
+        )
+
+        val read = JournalFile.decodeRecap(JournalFile.encodeRecap(recap))!!
+
+        assertEquals(Recap.LAYOUT_V2, read.schemaVersion)
+        assertEquals("abc123", read.sourceHash)
+        assertEquals(9, read.entryCount)
+        val restored = com.onedayonesecond.data.RecapRows.decode(read.previousJson!!)!!
+        assertEquals(previous.copy(json = restored.json), restored)
+    }
+
+    @Test
+    fun `a recap file written before the new layout is read as the old layout`() {
+        val old = """{"key":"week-2026-11-09","title":"A quiet week","quote":"Tired today.",
+            "quoteDate":"2026-11-15","createdAt":123,"chapters":{"note":"Rest counts."}}"""
+
+        val read = JournalFile.decodeRecap(old.toByteArray())!!
+
+        assertEquals(Recap.LAYOUT_V1, read.schemaVersion)
+        assertEquals("", read.sourceHash)
+        assertEquals(0, read.entryCount)
+        assertNull(read.previousJson)
+    }
+
+    @Test
+    fun `an edited entry keeps when it was edited, and an unedited day keeps its bytes`() {
+        val edited = written.copy(updatedAt = 5000)
+        val withEdit = day.copy(entries = listOf(edited, voice))
+        assertEquals(withEdit, JournalFile.decodeDay(JournalFile.encodeDay(withEdit)))
+
+        // An entry edited "at" the moment it was made is no edit: the file is as before.
+        assertArrayEquals(
+            JournalFile.encodeDay(day),
+            JournalFile.encodeDay(day.copy(entries = listOf(written.copy(updatedAt = written.createdAt), voice))),
+        )
+    }
+
     // Merging with what is already in Drive
 
     @Test

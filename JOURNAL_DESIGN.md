@@ -39,9 +39,12 @@ describe how it looks and this section disagrees, this section is right.
 | Frame line | `#E8C2D1` | Outlined buttons and chips, dashed frames of missed days |
 | Error | `#B3261E` | Things going wrong, actions that delete |
 
-Mood scale (only in the year in pixels and its export, darker = harder day):
-great `#F9D3E0`, good `#F7BDD0`, neutral `#E58AAB`, bad `#B8527A`, rough `#6E2445`.
-Everywhere else a mood is its face and its word, never a colour alone.
+Mood scale (darker = harder day): great `#F9D3E0`, good `#F7BDD0`, neutral `#E58AAB`,
+bad `#B8527A`, rough `#6E2445`. Used by the year in pixels and its export, the thin
+mood bar under each day of a week or month recap, and the weekday row of a month or
+year recap. Everywhere else a mood is its face and its word; where the scale is used,
+the face, the word or the screen reader's label is there too, so it is never a colour
+alone.
 
 Rules: one rose button per screen (on the tabs and the day and book pages it is the
 floating button, bottom right). Surfaces are flat; only the floating button, the
@@ -170,24 +173,58 @@ undo, and it stays in Recently deleted for 30 days."). Close button at the botto
 - "Months and weeks": one row per month (tap → month recap) with an expand toggle
   "4 weeks" that shows week chips ("9 to 15 Nov", tap → week recap). The current
   month says "Letter arrives on 1 December"; the current week chip says "on Sunday".
-### Week / Month / Year recap (new, one shared layout)
-1. Back, period with a previous arrow ("9 to 15 November").
-2. Title (28 sp), then the quote of the period in Rose serif italic + "You, on Saturday".
-3. One visual: portrait clip tiles with a thin mood bar under each (week = 7 tiles,
-   month = calendar grid). Year shows a small pixel preview linking to Year in pixels.
-   One Muted line: "The bar under each day is your mood. Darker is a harder day."
-4. "Play this week, 6 seconds" text button.
-5. Chapters with the same heading style and a hairline between them:
-   **What happened** (short dated lines) · **A note for you** ("Dear Eza," + one short
-   paragraph) · **Since last week/month/year** (up/down/same arrows) ·
-   **Something to try** (2 gentle bullets, not a checklist). Year adds
-   **Where you were** (days per city as bars).
-6. Footer line: "A reflection from your own entries, not therapy."
+### Week / Month / Year recap (one shared layout, recap layout 2)
+White, one rose action, hairlines between chapters, no cards. Top to bottom
+(`ui/recaps/RecapScreen.kt`, chapters in `RecapLetterChapters.kt`):
+1. Back bar with a ⋯ menu ("Write this recap again"), Week / Month / Year tabs, the
+   period with previous and next arrows, the title (28 sp).
+2. The quote, word for word from an entry, slanted, + "You, on Saturday".
+3. One picture of the days: week = 7 portrait frames, month = calendar of small frames,
+   each with a thin mood bar under it ("The bar under each day is your mood. Darker is
+   a harder day."); the week's frames keep the small face too. Year = small pixel
+   preview linking to Year in pixels. Then "Play this week, 7 seconds".
+4. **How you felt**: 1–2 sentences on a mood pattern tied to days, with the days as
+   chips. Only a pattern that holds on 2+ days, otherwise "steady". Month and year add
+   the usual mood of each weekday as 7 mood-coloured cells, worked out on the phone.
+5. **On your mind**: 2–4 threads that ran across days, each a title, a line and the
+   days as chips ("Mon · Tue · Fri"); a chip opens that day. An event with a before
+   and an after is one thread. A folded "Day by day" row opens the old one line per
+   day (week and month only).
+6. **Wins**: 2–3 concrete things, each with its day (tap opens the day).
+7. **Still open**: things that sounded unfinished, each linking to its day. Left out
+   when there are none. No checkboxes.
+8. **A note for you**: "Dear Eza," + one short paragraph naming at least two specific
+   things and saying something true, not only comforting.
+9. **A question for next week/month/year**: one open question built from an entry.
+10. **Since last week/month/year**: counted on the phone (`SinceLast`): "went up from
+    3 to 7", "went down from 7 to 5", "stayed at 7" with the same/up/down icon; mood as
+    a face and a word ("mostly good"). With no previous period with days kept: "Your
+    first week in Kilasan." (or "Nothing was kept last week to compare with." after a
+    gap) and this period's totals.
+11. Month and year: **Who and what came up most**, people and topics with the number
+    of days and an arrow (or "new") against the period before. Year: **Where you were**.
+12. Footer: "A reflection from your own entries, not therapy."
+
+Under the title, a Muted line when the letter no longer matches the entries ("You've
+added 2 entries since this was written.", or "Your entries changed since this was
+written.") or is in the old layout ("Written in the old layout."), with a "Write it
+again" text link. Old-layout recaps are still shown the old way (What happened,
+note, changes, Something to try).
+
+**Write this recap again**: a dialog says "This replaces the current letter for 16 to
+22 November with a new one written from your entries as they are now." with Write it
+again / Cancel (Cancel has focus). While it is written the old letter stays, with
+"Writing a new version…" and a busy line at the top. On success the message bar says
+"New letter for 16 to 22 November." with Undo (the replaced version comes back). On
+failure the old letter stays and an alert says why (offline, server, too few days now)
+with Try again.
+
 States: still writing (placeholder lines + "Takes about a minute"), not enough
 entries ("You've written on 1 day this week. Write on 3 or more…" + "Write about
 today"), couldn't be written ("Your phone was offline on Sunday night. Your entries
-are safe" + "Write the letter now").
- 
+are safe" + "Write the letter now"), rewriting (old letter visible), rewrite failed
+(old letter kept + reason + Try again).
+
 ### Year in pixels (new)
 - One column per month, one row per day, cells colored by mood; no entry = outline;
   future = faint.
@@ -221,6 +258,13 @@ each row with its icon in a tinted circle:
   entries and books are on the phone, Rose "Back up now", outlined "Restore from
   Drive" (only adds what is missing from the phone). A run carries on when the page
   is left.
+- **Recaps**: "Write recaps for past weeks and months" opens a page that first lists
+  what it would do, with counts: past weeks, months and finished years with enough
+  entries and no recap ("12 weeks and 3 months"), an opt-in checkbox to rewrite the
+  recaps in the old layout, and an opt-in checkbox for this year so far. Rose "Write
+  15 recaps". While it runs: "7 of 15 written", a progress line and Stop (keeps what
+  is written); the same with Stop in a notification. Its row in Settings shows the
+  progress while it runs.
 - **Your data**: "Recently deleted" (with its count) and "About Kilasan".
 ### Books tab (new)
 - Title "Books", + at top right opens Add a book.
@@ -311,10 +355,23 @@ data class Entry(
 data class Recap(
     @PrimaryKey val key: String, // "week-2026-11-09", "month-2026-10", "year-2026"
     val title: String, val quote: String, val quoteDate: LocalDate,
-    val json: String,            // what happened, note, changes, tries, places
+    val json: String,            // the chapters; layout 1 = RecapContent, layout 2 = RecapLetter
     val createdAt: Long,
+    // Added in version 5 (Recap v2):
+    val schemaVersion: Int,      // 2 for the current layout; rows written before = 1
+    val sourceHash: String,      // fingerprint of the period's entry ids + updatedAt + moods; "" for layout 1
+    val entryCount: Int,         // entries in the period when it was written
+    val previousJson: String?,   // the version a rewrite replaced, whole row as JSON, for Undo (one deep)
 )
 ```
+
+Version 5 (migration 4 → 5, `JournalSchema.MIGRATION_4_5_SQL`) only adds columns:
+`entries.updatedAt` (set to `createdAt` for existing entries; moved whenever the words
+change: edited by hand, cleared, or typed out) and the four recap columns above
+(existing recaps become layout 1). A recap is out of date when the fingerprint of its
+period today (`RecapSource.hash`) differs from `sourceHash`. Layout 2's `json` keeps
+the model's words plus the phone's numbers at the time of writing: the stats of the
+period and the one before, people/topic counts and days per place.
  
 Books (same migration, or 3 → 4 if the diary part has already shipped):
  
@@ -371,7 +428,11 @@ data class BookSummary(
 - **Location:** fused location once per entry; reverse geocode to a short place
   name. Ask permission on first use; when off, simply hide place lines.
 - **Backup:** extend the Drive layout so entries, day_meta, recaps, books, book
-  thoughts and covers are backed up with the clips (JSON next to the media).
+  thoughts and covers are backed up with the clips (JSON next to the media). As built
+  for version 5: a recap's file carries `schemaVersion`, `sourceHash`, `entryCount`
+  and the replaced version (`previous`); an entry carries `updatedAt` only when it was
+  edited after it was made (so untouched days keep their bytes). Restore reads files
+  with and without these fields: a recap file without `schemaVersion` is layout 1.
 ## AI (Gemini via the backend)
  
 - Python FastAPI backend on Cloud Run, Gemini through Vertex AI with the service
@@ -387,11 +448,21 @@ data class BookSummary(
   review ideas" screen (title, verbatim quote from my thoughts + page, summary,
   4–5 points each with source pages, one gap). Needs at least 3 thoughts.
 - Weekly recap every Sunday night (WorkManager), monthly on the 1st, yearly on
-  31 December. Needs at least 3 days with entries in a week.
-- Recap prompt structure: what happened (factual, dated) → a warm, non-judging
-  note in the voice of a psychologist → one quote taken verbatim from the user's own
-  entries → what changed vs. the previous period (with numbers) → 2 gentle
-  suggestions. Return JSON matching the `Recap.json` fields.
+  31 December. Needs at least 3 days with entries in the period (week, month or year).
+- Recap (`POST /recap`, layout 2): the app sends every entry of the period (date,
+  time, type, text or transcript, place), the mood per day, its own stats for this and
+  the previous period, and the previous recap's threads. The model returns title,
+  quote {text, date}, howYouFelt {text, days}, threads, dayByDay, wins, stillOpen,
+  note, question, and for month/year topPeople/topTopics. Rules: specific over
+  generic, no invented facts, no diagnosis, no to-dos, written in English (the quote
+  stays in the entry's own words), note and question tied to concrete details. The backend checks the
+  answer with Pydantic (one retry on a schema error), requires the quote to be an exact
+  piece of an entry on its date (one retry with the error, then picks one itself), and
+  drops any day outside the period or without entries. Every number on the page is
+  worked out on the phone. Details in docs/JOURNAL_BACKEND.md.
+- Re-recap: "Write this recap again" on a recap (old one kept for Undo), and
+  Settings → Recaps → past weeks and months, written oldest first, one request at a
+  time, 5 s apart, as a WorkManager chain that waits for a connection.
 ## Must-fix behaviour in existing code
  
 1. `ClipRepository.deleteClip` deletes the file immediately. Move the file to a

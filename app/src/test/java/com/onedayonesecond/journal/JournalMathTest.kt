@@ -149,9 +149,12 @@ class JournalMathTest {
     }
 
     @Test
-    fun `the request carries the days, their words and both sets of numbers`() {
+    fun `the request carries the days, the entries and both sets of numbers`() {
         val period = RecapPeriod.weekOf(saturday)
-        val request = RecapRequest.build(period, days, PeriodStats(3, 1, 40, 2.5), name = " Eza ")
+        val entries = listOf(
+            com.onedayonesecond.data.Entry(id = 1, date = saturday, createdAt = 0, type = com.onedayonesecond.data.EntryType.WRITTEN, text = "Coffee."),
+        )
+        val request = RecapRequest.build(period, entries, days, PeriodStats(3, 1, 40, 2.5), emptyList(), name = " Eza ")
 
         assertEquals("week", request.getString("period"))
         assertEquals("week-2026-11-09", request.getString("key"))
@@ -162,19 +165,22 @@ class JournalMathTest {
         assertEquals("Friday", sent.getJSONObject(0).getString("weekday"))
         assertTrue(sent.getJSONObject(0).isNull("mood"))
         assertEquals("GOOD", sent.getJSONObject(1).getString("mood"))
-        assertEquals(1, sent.getJSONObject(1).getJSONArray("entries").length())
+        assertEquals("Coffee.", request.getJSONArray("entries").getJSONObject(0).getString("text"))
         assertEquals(2, request.getJSONObject("stats").getInt("daysWritten"))
         assertEquals(1, request.getJSONObject("previousStats").getInt("daysWritten"))
     }
 
     @Test
     fun `long entries are cut before they are sent, more so for longer periods`() {
-        val long = listOf(DaySummary(saturday, texts = listOf("x".repeat(10_000)), entryCount = 1))
-        fun sentLength(period: RecapPeriod) = RecapRequest.build(period, long, null, "")
-            .getJSONArray("days").getJSONObject(0).getJSONArray("entries").getString(0).length
+        val long = listOf(
+            com.onedayonesecond.data.Entry(date = saturday, createdAt = 0, type = com.onedayonesecond.data.EntryType.WRITTEN, text = "x".repeat(10_000)),
+        )
+        val summary = listOf(DaySummary(saturday, texts = listOf("x".repeat(10_000)), entryCount = 1))
+        fun sentLength(period: RecapPeriod) = RecapRequest.build(period, long, summary, null, emptyList(), "")
+            .getJSONArray("entries").getJSONObject(0).getString("text").length
         assertEquals(4000, sentLength(RecapPeriod.weekOf(saturday)))
         assertEquals(400, sentLength(RecapPeriod.Year(2026)))
-        assertTrue(RecapRequest.build(RecapPeriod.Year(2026), long, null, "").isNull("previousStats"))
+        assertTrue(RecapRequest.build(RecapPeriod.Year(2026), long, summary, null, emptyList(), "").isNull("previousStats"))
     }
 
     @Test
@@ -183,13 +189,40 @@ class JournalMathTest {
         assertNull(RecapRequest.parse(JSONObject("""{"title":"A week"}""")))
         val draft = RecapRequest.parse(
             JSONObject(
-                """{"title":"A quiet week","quote":"Tired today.","quoteDate":"2026-11-15","note":"Rest counts.",
+                """{"title":"A quiet week","quote":{"text":"Tired today.","date":"2026-11-15"},"note":"Rest counts.",
                    "places":[{"name":"Made up","days":9}]}""",
             ),
         )
         assertNotNull(draft)
         assertEquals("A quiet week", draft!!.title)
         assertEquals(sunday, draft.quoteDate)
-        assertTrue("places come from the phone, never from the model", draft.content.places.isEmpty())
+        assertTrue("places come from the phone, never from the model", draft.letter.places.isEmpty())
+    }
+
+    // Month and year recaps
+
+    @Test
+    fun `the usual mood of each weekday is the rounded average of its days`() {
+        val moods = mapOf(
+            LocalDate.of(2026, 11, 2) to Mood.GREAT, // Monday
+            LocalDate.of(2026, 11, 9) to Mood.GOOD, // Monday: 4.5 rounds up to great
+            LocalDate.of(2026, 11, 4) to Mood.ROUGH, // Wednesday
+        )
+        val byWeekday = JournalMath.moodByWeekday(moods)
+        assertEquals(Mood.GREAT, byWeekday[java.time.DayOfWeek.MONDAY])
+        assertEquals(Mood.ROUGH, byWeekday[java.time.DayOfWeek.WEDNESDAY])
+        assertNull(byWeekday[java.time.DayOfWeek.SUNDAY])
+        assertEquals(7, byWeekday.size)
+    }
+
+    @Test
+    fun `a name is counted once a day, as a whole word, ignoring case`() {
+        val written = listOf(
+            DaySummary(saturday, texts = listOf("Ketemu Raka.", "Raka lagi."), entryCount = 2),
+            DaySummary(sunday, texts = listOf("RAKA telpon"), entryCount = 1),
+            DaySummary(LocalDate.of(2026, 11, 13), texts = listOf("Rakamin bukan orang."), entryCount = 1),
+        )
+        assertEquals(2, JournalMath.daysMentioning("Raka", written))
+        assertEquals(0, JournalMath.daysMentioning(" ", written))
     }
 }
