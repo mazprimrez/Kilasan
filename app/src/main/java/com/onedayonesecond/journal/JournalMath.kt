@@ -1,6 +1,7 @@
 package com.onedayonesecond.journal
 
 import com.onedayonesecond.data.Mood
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /** One day as the recaps and pictures see it. */
@@ -97,6 +98,32 @@ object JournalMath {
         val (text, date) = candidates.firstOrNull { it.first.length >= MIN_QUOTE_LENGTH } ?: return null
         return text.take(MAX_QUOTE_LENGTH).trimEnd() to date
     }
+
+    /**
+     * On how many days [name] appears in what was written, as a whole word and ignoring
+     * case ("Ibu" counts in "sama ibu", not in "ibukota"). Counted on the phone from the
+     * full entries, so a person's count is a fact and not the model's estimate.
+     */
+    fun daysMentioning(name: String, days: Collection<DaySummary>): Int {
+        val word = name.trim()
+        if (word.isEmpty()) return 0
+        val pattern = Regex(
+            "(?<![\\p{L}\\p{N}])" + Regex.escape(word) + "(?![\\p{L}\\p{N}])",
+            setOf(RegexOption.IGNORE_CASE),
+        )
+        return days.count { day -> day.texts.any { pattern.containsMatchIn(it) } }
+    }
+
+    /**
+     * The usual mood of each weekday over a month or a year: the average of that
+     * weekday's moods, rounded the way "Since last …" rounds. Null for a weekday without
+     * any mood.
+     */
+    fun moodByWeekday(moods: Map<LocalDate, Mood>): Map<DayOfWeek, Mood?> =
+        DayOfWeek.entries.associateWith { weekday ->
+            val scores = moods.filterKeys { it.dayOfWeek == weekday }.values.map { it.score }
+            if (scores.isEmpty()) null else SinceLast.moodOf(scores.average())
+        }
 
     private fun squash(text: String): String = text.trim().replace(Regex("\\s+"), " ")
 

@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.offset
@@ -42,6 +44,15 @@ import androidx.compose.ui.graphics.PathEffect
 import com.onedayonesecond.ui.theme.StateCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import com.onedayonesecond.journal.RecapSource
+import com.onedayonesecond.ui.theme.AppDialog
+import com.onedayonesecond.ui.theme.BusyLine
+import com.onedayonesecond.ui.theme.InlineAlert
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -122,6 +133,8 @@ fun RecapScreen(
     val period = state.period
     val today = state.today
     var playing by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
+    var confirmingRewrite by remember { mutableStateOf(false) }
     val status = state.status
     val clips = remember(state.clips) { state.clips.values.sortedBy { it.date } }
 
@@ -134,7 +147,26 @@ fun RecapScreen(
                 is RecapPeriod.Month -> "Monthly recap"
                 is RecapPeriod.Year -> "Yearly recap"
             },
-        )
+        ) {
+            if (state.canRewrite) {
+                Box {
+                    IconAction(LineIcons.More, "More options", { menuOpen = true }, enabled = !state.rewriting)
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                        containerColor = Palette.Paper,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Write this recap again", style = AppType.Body, color = Palette.Ink) },
+                            onClick = {
+                                menuOpen = false
+                                confirmingRewrite = true
+                            },
+                        )
+                    }
+                }
+            }
+        }
         PeriodTabs(period, today, onOpenRecap)
 
         Column(
@@ -171,9 +203,40 @@ fun RecapScreen(
                 )
             }
 
+            // While a new version is written the old one stays; a slim line says so.
+            if (state.rewriting) {
+                Column(Modifier.padding(top = 4.dp, bottom = 8.dp).semantics { liveRegion = LiveRegionMode.Polite }) {
+                    MetaText("Writing a new version…")
+                    BusyLine(Modifier.padding(top = 6.dp))
+                }
+            }
+            state.rewriteFailure?.let { reason ->
+                InlineAlert(
+                    "Couldn't write a new version",
+                    Modifier.padding(top = 4.dp, bottom = 8.dp),
+                    body = reason,
+                    icon = LineIcons.Offline,
+                    actionLabel = "Try again",
+                    onAction = viewModel::rewrite,
+                )
+            }
+
             // 2. Title and quote.
             if (status is RecapStatus.Ready) {
                 TitleText(status.recap.title, Modifier.padding(top = 8.dp))
+                // Says when the letter no longer matches the entries, or is in the old layout.
+                val staleness = state.staleness
+                val outOfDate = when {
+                    status.letter == null -> "Written in the old layout."
+                    staleness != null -> RecapSource.describe(staleness)
+                    else -> null
+                }
+                if (outOfDate != null && !state.rewriting) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                        MetaText(outOfDate, Modifier.weight(1f, fill = false))
+                        if (state.canRewrite) TextAction("Write it again", { confirmingRewrite = true })
+                    }
+                }
                 if (status.recap.quote.isNotEmpty()) {
                     TintCard(Modifier.padding(top = 22.dp)) {
                         Text("“${status.recap.quote}”", style = AppType.Quote, color = Palette.Ink)
@@ -203,14 +266,8 @@ fun RecapScreen(
                 is RecapPeriod.Month -> MonthFrames(period, state, onOpenDay)
                 is RecapPeriod.Year -> YearPreview(period.year, state.moods, today) { onOpenPixels(period.year) }
             }
-            when (period) {
-                is RecapPeriod.Week ->
-                    SmallText("Each frame is that day's second; the face on it is your mood.", Modifier.padding(top = 10.dp))
-                is RecapPeriod.Month -> MetaText(
-                    "Each frame is a day's second; the face under it is your mood. Dashed frames are missed days.",
-                    Modifier.padding(top = 10.dp),
-                )
-                is RecapPeriod.Year -> Unit
+            if (period !is RecapPeriod.Year) {
+                SmallText("The bar under each day is your mood. Darker is a harder day.", Modifier.padding(top = 10.dp))
             }
 
             // 4. Play the period's seconds back to back.
@@ -234,7 +291,11 @@ fun RecapScreen(
 
             // 5. The chapters, or why there are none yet.
             when (status) {
-                is RecapStatus.Ready -> Chapters(period, status.content, state.name)
+                is RecapStatus.Ready -> when {
+                    status.letter != null ->
+                        LetterChapters(period, status.letter, state.name, state.moods, onOpenDay)
+                    status.content != null -> Chapters(period, status.content, state.name)
+                }
                 RecapStatus.Loading -> Unit
                 RecapStatus.Writing -> WritingPlaceholder(period)
                 is RecapStatus.NotEnough -> NotEnough(period, status.daysWritten, today) { onWrite(today) }
@@ -251,6 +312,38 @@ fun RecapScreen(
     }
 
     if (playing) PlayDialog(clips, onDismiss = { playing = false })
+
+    if (confirmingRewrite) {
+        RewriteDialog(
+            period = period,
+            onConfirm = {
+                confirmingRewrite = false
+                viewModel.dismissRewriteFailure()
+                viewModel.rewrite()
+            },
+            onDismiss = { confirmingRewrite = false },
+        )
+    }
+}
+
+/** "Write this recap again": says what will be replaced. Cancel has the focus, so nothing is replaced by accident. */
+@Composable
+private fun RewriteDialog(period: RecapPeriod, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val cancelFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { cancelFocus.requestFocus() }
+    AppDialog(
+        onDismiss = onDismiss,
+        title = "Write this recap again?",
+        buttons = {
+            TextAction("Cancel", onDismiss, Modifier.focusRequester(cancelFocus), color = Palette.Ink)
+            RoseButton("Write it again", onConfirm)
+        },
+    ) {
+        BodyText(
+            "This replaces the current letter for ${RecapLabels.long(period)} with a new one written from your " +
+                "entries as they are now.",
+        )
+    }
 }
 
 // The picture
@@ -343,6 +436,7 @@ private fun WeekFrames(week: RecapPeriod.Week, state: RecapUiState, onOpenDay: (
                 ) {
                     ClipStill(clip, Modifier.fillMaxSize())
                 }
+                MoodBar(mood, isFuture, Modifier.padding(top = 6.dp, bottom = 4.dp))
                 Text(
                     date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale),
                     style = AppType.LabelSmall,
@@ -403,9 +497,7 @@ private fun MonthFrames(month: RecapPeriod.Month, state: RecapUiState, onOpenDay
                             ) {
                                 ClipStill(clip, Modifier.fillMaxSize())
                             }
-                            Box(Modifier.padding(top = 5.dp).size(18.dp)) {
-                                if (mood != null) MoodFace(mood, size = 18.dp)
-                            }
+                            MoodBar(mood, isFuture, Modifier.padding(top = 5.dp))
                         }
                     }
                 }
@@ -498,7 +590,7 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPixels(
 
 /** A part of the letter: a hairline, a heading, then what it says. */
 @Composable
-private fun Chapter(title: String, content: @Composable () -> Unit) {
+internal fun Chapter(title: String, content: @Composable () -> Unit) {
     Column {
         Hairline()
         HeadingText(title, Modifier.padding(top = 20.dp, bottom = 14.dp))

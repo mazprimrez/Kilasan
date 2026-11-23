@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BookThought::class,
         BookSummary::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -89,11 +89,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Version 5 is Recap v2: entries get `updatedAt`, recaps get their layout, the
+         * fingerprint of what they were written from, an entry count and the version a
+         * rewrite replaced. Recaps already written stay, marked as layout 1.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                JournalSchema.MIGRATION_4_5_SQL.forEach(db::execSQL)
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "onedayonesecond.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+            ).addMigrations(*ALL_MIGRATIONS).build()
     }
 }

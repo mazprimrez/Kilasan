@@ -7,6 +7,7 @@ import com.onedayonesecond.ui.backup.BackupViewModel
 import com.onedayonesecond.ui.compile.CompileViewModel
 import com.onedayonesecond.ui.settings.BackupScreen
 import com.onedayonesecond.ui.settings.ReelTextScreen
+import com.onedayonesecond.ui.settings.RecapBackfillScreen
 import com.onedayonesecond.ui.settings.SettingsScreen
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -283,11 +284,16 @@ private fun androidx.navigation.NavGraphBuilder.destinations(
             onBack = { nav.popBackStack() },
             onTextSettings = { nav.navigate(Routes.REEL_TEXT) },
             onBackup = { nav.navigate(Routes.BACKUP) },
+            onRecapBackfill = { nav.navigate(Routes.RECAP_BACKFILL) },
             onRecentlyDeleted = { nav.navigate(Routes.DELETED) },
             onAbout = { nav.navigate(Routes.ABOUT) },
             compile = viewModel(activity, factory = CompileViewModel.Factory),
             backup = viewModel(activity, factory = BackupViewModel.Factory),
         )
+    }
+
+    screen(Routes.RECAP_BACKFILL, padding) {
+        RecapBackfillScreen(onBack = { nav.popBackStack() })
     }
 
     screen(Routes.REEL_TEXT, padding) {

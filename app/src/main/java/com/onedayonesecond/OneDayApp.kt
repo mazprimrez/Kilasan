@@ -3,6 +3,7 @@ package com.onedayonesecond
 import kotlinx.coroutines.flow.first
 import android.app.Application
 import androidx.media3.common.util.UnstableApi
+import com.onedayonesecond.work.BackfillWork
 import com.onedayonesecond.work.BookWork
 import com.onedayonesecond.work.JournalWork
 import com.onedayonesecond.work.Reminders
@@ -18,6 +19,7 @@ class OneDayApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         Reminders.createChannel(this)
+        BackfillWork.createChannel(this)
         // Recordings and reels from a previous run are scratch data by
         // definition — a finished clip has already been moved into filesDir.
         container.storage.clearCaptures()

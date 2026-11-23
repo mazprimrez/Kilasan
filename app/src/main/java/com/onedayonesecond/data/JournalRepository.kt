@@ -58,6 +58,8 @@ class JournalRepository(
 
     suspend fun earliestEntryDate(): LocalDate? = dao.earliestEntryDate()
 
+    suspend fun entryDates(): List<LocalDate> = dao.entryDates()
+
     suspend fun addWritten(date: LocalDate, text: String, place: String?): Entry {
         val entry = Entry(
             date = date,
@@ -78,10 +80,10 @@ class JournalRepository(
     suspend fun setText(entry: Entry, text: String) {
         val words = text.trim()
         if (words.isNotEmpty() || !entry.needsText) {
-            dao.setEntryTextByHand(entry.id, words)
+            dao.setEntryTextByHand(entry.id, words, now())
         } else {
             // Emptied out: the words are gone, but it may still be typed out.
-            dao.clearEntryText(entry.id, words)
+            dao.clearEntryText(entry.id, words, now())
         }
     }
 
@@ -137,7 +139,7 @@ class JournalRepository(
      * @return false if the entry was already done, which means the user typed its words
      * while it was being typed out. Theirs are kept.
      */
-    suspend fun finishTypingOut(id: Long, text: String): Boolean = dao.finishTypingOut(id, text.trim()) > 0
+    suspend fun finishTypingOut(id: Long, text: String): Boolean = dao.finishTypingOut(id, text.trim(), now()) > 0
 
     suspend fun deleteEntry(entry: Entry) = withContext(Dispatchers.IO) {
         dao.deleteEntry(entry)
@@ -153,6 +155,23 @@ class JournalRepository(
     suspend fun allRecaps(): List<Recap> = dao.allRecaps()
 
     suspend fun saveRecap(recap: Recap) = dao.upsertRecap(recap)
+
+    /**
+     * Stores [recap] in place of the one already there, keeping that one in
+     * [Recap.previousJson] so the rewrite can be undone. Only one version is kept.
+     */
+    suspend fun replaceRecap(recap: Recap) {
+        val current = dao.recap(recap.key)
+        dao.upsertRecap(recap.copy(previousJson = current?.let { RecapRows.encode(it.copy(previousJson = null)) }))
+    }
+
+    /** Puts back the version a rewrite replaced. False if there is none to put back. */
+    suspend fun undoRecap(key: String): Boolean {
+        val current = dao.recap(key) ?: return false
+        val previous = current.previousJson?.let(RecapRows::decode)?.takeIf { it.key == key } ?: return false
+        dao.upsertRecap(previous.copy(previousJson = null))
+        return true
+    }
 
     private fun String?.tidyPlace(): String? =
         this?.trim()?.replace(Regex("\\s+"), " ")?.take(MAX_PLACE_LENGTH)?.ifEmpty { null }

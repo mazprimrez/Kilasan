@@ -30,7 +30,7 @@ def test_a_call_logs_its_feature_model_and_tokens(client, fake, owner, capsys):
 def test_each_endpoint_logs_its_own_feature(client, fake, owner, capsys):
     client.post("/v1/transcribe", content=b"audio", headers={**owner, "Content-Type": "audio/mp4"})
     client.post("/v1/extract-text", content=b"image", headers={**owner, "Content-Type": "image/jpeg"})
-    fake.answer = {"title": "A week", "note": "A note."}
+    fake.answer = sample("week_answer")
     client.post("/v1/recap", json=sample("week"), headers=owner)
     fake.answer = {"title": "A book", "summary": "A summary.", "ideas": []}
     client.post("/v1/book-recap", json=sample("book"), headers=owner)

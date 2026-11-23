@@ -24,7 +24,7 @@ def test_every_endpoint_uses_the_configured_model(fake, owner):
 
     client.post("/v1/transcribe", content=b"audio", headers={**owner, "Content-Type": "audio/mp4"})
     client.post("/v1/extract-text", content=b"image", headers={**owner, "Content-Type": "image/jpeg"})
-    fake.answer = {"title": "A week", "note": "A note."}
+    fake.answer = sample("week_answer")
     client.post("/v1/recap", json=sample("week"), headers=owner)
 
     assert [call.model for call in fake.calls] == ["gemini-9-flash-lite"] * 3

@@ -3,6 +3,7 @@ package com.onedayonesecond.backup
 import com.onedayonesecond.data.EntryType
 import com.onedayonesecond.data.Mood
 import com.onedayonesecond.data.Recap
+import com.onedayonesecond.data.RecapRows
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -15,6 +16,8 @@ data class EntryBackup(
     val text: String?,
     val media: String?,
     val place: String?,
+    /** When its words last changed. Null in older backups and when it equals [createdAt]. */
+    val updatedAt: Long? = null,
 )
 
 /** A day's journal as it is written in the backup: mood, place and entries. */
@@ -59,6 +62,9 @@ object JournalFile {
             entry.text?.let { json.put("text", it) }
             entry.media?.let { json.put("media", it) }
             entry.place?.let { json.put("place", it) }
+            // Only written for an entry edited after it was made, so the files of days
+            // nobody touched keep their bytes and are not uploaded again.
+            entry.updatedAt?.takeIf { it != entry.createdAt }?.let { json.put("updatedAt", it) }
             entries.put(json)
         }
         val json = JSONObject().put("date", day.date.toString())
@@ -90,6 +96,7 @@ object JournalFile {
                 text = entry.textOrNull("text"),
                 media = entry.textOrNull("media"),
                 place = entry.textOrNull("place"),
+                updatedAt = entry.optLong("updatedAt", -1).takeIf { it >= 0 && it != createdAt },
             )
         }
         return DayBackup(
@@ -100,36 +107,14 @@ object JournalFile {
         )
     }
 
-    fun encodeRecap(recap: Recap): ByteArray = JSONObject()
-        .put("key", recap.key)
-        .put("title", recap.title)
-        .put("quote", recap.quote)
-        .put("quoteDate", recap.quoteDate.toString())
-        .put("createdAt", recap.createdAt)
-        // The chapters are nested as they are, so the file reads as one document.
-        .put("chapters", runCatching { JSONObject(recap.json) }.getOrDefault(JSONObject()))
-        .toString(2)
-        .toByteArray(Charsets.UTF_8)
+    /** A recap's file: the whole row, layout 2 fields and the version kept for Undo included. */
+    fun encodeRecap(recap: Recap): ByteArray = RecapRows.toJson(recap).toString(2).toByteArray(Charsets.UTF_8)
 
-    /** Null for a damaged file or one missing its key, title or quote date. */
-    fun decodeRecap(bytes: ByteArray): Recap? {
-        val json = try {
-            JSONObject(String(bytes, Charsets.UTF_8))
-        } catch (e: JSONException) {
-            return null
-        }
-        val key = json.textOrNull("key") ?: return null
-        val title = json.textOrNull("title") ?: return null
-        val quoteDate = runCatching { LocalDate.parse(json.optString("quoteDate")) }.getOrNull() ?: return null
-        return Recap(
-            key = key,
-            title = title,
-            quote = json.optString("quote"),
-            quoteDate = quoteDate,
-            json = (json.optJSONObject("chapters") ?: JSONObject()).toString(),
-            createdAt = json.optLong("createdAt"),
-        )
-    }
+    /**
+     * Null for a damaged file or one missing its key, title or quote date. Files written
+     * before layout 2 have none of its fields and are read as layout-1 recaps.
+     */
+    fun decodeRecap(bytes: ByteArray): Recap? = RecapRows.decode(String(bytes, Charsets.UTF_8))
 
     private fun JSONObject.textOrNull(name: String): String? =
         if (isNull(name)) null else optString(name).ifEmpty { null }

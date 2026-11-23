@@ -64,6 +64,7 @@ import com.onedayonesecond.ui.theme.AppType
 import com.onedayonesecond.ui.theme.BackBar
 import com.onedayonesecond.ui.theme.Hairline
 import com.onedayonesecond.ui.theme.LineIcons
+import com.onedayonesecond.work.BackfillLabels
 import com.onedayonesecond.ui.theme.MetaText
 import com.onedayonesecond.ui.theme.Palette
 import com.onedayonesecond.ui.theme.ScreenPadding
@@ -90,6 +91,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onTextSettings: () -> Unit,
     onBackup: () -> Unit,
+    onRecapBackfill: () -> Unit,
     onRecentlyDeleted: () -> Unit,
     onAbout: () -> Unit,
     compile: CompileViewModel,
@@ -145,6 +147,20 @@ fun SettingsScreen(
                     onClick = null,
                     subtitle = "Weekly on Sunday night, monthly on the 1st, yearly on 31 December",
                     icon = LineIcons.Letter,
+                )
+            }
+
+            Section("Recaps") {
+                ActionRow(
+                    "Write recaps for past weeks and months",
+                    onRecapBackfill,
+                    subtitle = if (state.backfill.running) {
+                        BackfillLabels.progress(state.backfill)
+                    } else {
+                        "For weeks and months that have no letter yet"
+                    },
+                    icon = LineIcons.Recaps,
+                    trailing = { Chevron() },
                 )
             }
 

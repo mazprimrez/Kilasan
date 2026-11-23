@@ -1,5 +1,6 @@
 package com.onedayonesecond.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -56,6 +57,11 @@ data class Entry(
     val mediaPath: String? = null,
     val placeName: String? = null,
     val processing: ProcessingState = ProcessingState.DONE,
+    /**
+     * When the entry's words last changed: written, edited by hand or typed out.
+     * Recaps compare it to tell whether they were written from the entries as they are.
+     */
+    @ColumnInfo(defaultValue = "0") val updatedAt: Long = createdAt,
 ) {
     val mediaFile: File? get() = mediaPath?.let(::File)
 
@@ -75,10 +81,29 @@ data class Recap(
     /** One sentence taken word for word from the user's own entries. */
     val quote: String,
     val quoteDate: LocalDate,
-    /** The chapters: what happened, the note, changes, things to try, places. */
+    /**
+     * The chapters. Layout 1: what happened, the note, changes, things to try, places
+     * (`RecapContent`). Layout 2: see `RecapLetter`.
+     */
     val json: String,
     val createdAt: Long,
-)
+    /** Which layout [json] is in: 1 for recaps written before version 5 of the database, 2 now. */
+    @ColumnInfo(defaultValue = "1") val schemaVersion: Int = 1,
+    /**
+     * A fingerprint of the period's entries and moods when this was written (see
+     * `RecapSource`). When today's differs, the recap is out of date. Empty for layout 1.
+     */
+    @ColumnInfo(defaultValue = "") val sourceHash: String = "",
+    /** How many entries the period had when this was written, for "You've added 2 entries since". */
+    @ColumnInfo(defaultValue = "0") val entryCount: Int = 0,
+    /** The version this one replaced, as a whole row in JSON, so a rewrite can be undone. One deep. */
+    val previousJson: String? = null,
+) {
+    companion object {
+        const val LAYOUT_V1 = 1
+        const val LAYOUT_V2 = 2
+    }
+}
 
 /**
  * A second that was deleted or replaced. Its video sits in the trash folder until it
@@ -100,4 +125,23 @@ data class DeletedClip(
         const val KEEP_DAYS = 30L
         const val KEEP_MS = KEEP_DAYS * 24 * 60 * 60 * 1000
     }
+}
+
+/**
+ * What version 5 changes, statement for statement: entries learn when their words last
+ * changed, and recaps learn their layout, what they were written from, and the version
+ * they replaced. Columns are only added, so nothing that exists is lost. Each column's
+ * type, NOT NULL and default must match what Room generates for the entities above
+ * (app/schemas/.../5.json), or Room refuses to open the database; a unit test compares them.
+ */
+object JournalSchema {
+    val MIGRATION_4_5_SQL = listOf(
+        "ALTER TABLE `entries` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0",
+        // An entry that was never edited last changed when it was made.
+        "UPDATE `entries` SET `updatedAt` = `createdAt`",
+        "ALTER TABLE `recaps` ADD COLUMN `schemaVersion` INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE `recaps` ADD COLUMN `sourceHash` TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE `recaps` ADD COLUMN `entryCount` INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE `recaps` ADD COLUMN `previousJson` TEXT",
+    )
 }

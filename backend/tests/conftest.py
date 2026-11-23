@@ -34,6 +34,8 @@ class FakeModel:
     def __init__(self):
         self.calls = []
         self.answer: object = {"text": ""}
+        # Answers for consecutive calls, used before [answer] while any are left.
+        self.answers: list = []
         self.finish_reason = types.FinishReason.STOP
         self.error: Exception | None = None
         self.usage = SimpleNamespace(prompt_token_count=1200, candidates_token_count=80, thoughts_token_count=None)
@@ -43,11 +45,12 @@ class FakeModel:
         self.calls.append(SimpleNamespace(model=model, parts=contents[0].parts, config=config))
         if self.error:
             raise self.error
-        if self.answer is None:
+        answer = self.answers.pop(0) if self.answers else self.answer
+        if answer is None:
             return SimpleNamespace(
                 candidates=[], prompt_feedback=SimpleNamespace(block_reason="SAFETY"), text=None, usage_metadata=self.usage
             )
-        text = self.answer if isinstance(self.answer, str) else json.dumps(self.answer)
+        text = answer if isinstance(answer, str) else json.dumps(answer)
         candidate = SimpleNamespace(finish_reason=self.finish_reason)
         return SimpleNamespace(candidates=[candidate], prompt_feedback=None, text=text, usage_metadata=self.usage)
 

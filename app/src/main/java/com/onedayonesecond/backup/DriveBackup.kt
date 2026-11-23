@@ -406,6 +406,7 @@ class DriveBackup(
                 text = entry.text?.ifEmpty { null },
                 media = file?.name,
                 place = entry.placeName,
+                updatedAt = entry.updatedAt,
             )
         }
 
@@ -720,6 +721,7 @@ class DriveBackup(
                 text = entry.text,
                 mediaPath = path,
                 placeName = entry.place,
+                updatedAt = entry.updatedAt ?: entry.createdAt,
             )
             // A voice note or page that was backed up before its words were typed out
             // picks up where it left off.

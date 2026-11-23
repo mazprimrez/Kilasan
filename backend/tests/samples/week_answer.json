@@ -1,0 +1,66 @@
+{
+  "title": "Dari deadline ke pagi yang tenang",
+  "quote": {
+    "text": "It was the first quiet morning in weeks.",
+    "date": "2026-11-14"
+  },
+  "howYouFelt": {
+    "text": "Mood naik pelan-pelan: Monday paling berat, Friday dan Saturday paling ringan.",
+    "days": [
+      "2026-11-09",
+      "2026-11-13",
+      "2026-11-14"
+    ]
+  },
+  "threads": [
+    {
+      "title": "Deadline deck",
+      "line": "Dimajuin Monday, ke-submit Wednesday malam.",
+      "days": [
+        "2026-11-09",
+        "2026-11-11"
+      ]
+    },
+    {
+      "title": "Ibu",
+      "line": "Makan malam di Kemang, first time not thinking about work.",
+      "days": [
+        "2026-11-13"
+      ]
+    }
+  ],
+  "dayByDay": [
+    {
+      "date": "2026-11-09",
+      "line": "Meeting seharian; deadline dimajukan ke Rabu."
+    },
+    {
+      "date": "2026-11-11",
+      "line": "Deck ke-submit jam 9 malam."
+    },
+    {
+      "date": "2026-11-13",
+      "line": "Makan malam sama Ibu di Kemang."
+    },
+    {
+      "date": "2026-11-14",
+      "line": "Lari pagi 5K di GBK, lalu ngopi."
+    }
+  ],
+  "wins": [
+    {
+      "text": "Deck ke-submit sebelum deadline.",
+      "date": "2026-11-11"
+    }
+  ],
+  "stillOpen": [
+    {
+      "text": "Rasa kosong setelah deck selesai belum kamu tulis lagi.",
+      "date": "2026-11-11"
+    }
+  ],
+  "note": "Deadline deck makan Monday sampai Wednesday, and the first quiet moment only came at dinner with Ibu.",
+  "question": "Lari 5K di GBK bikin pagi tenang. What else did that morning have that the weekdays didn't?",
+  "topPeople": [],
+  "topTopics": []
+}

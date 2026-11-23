@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.onedayonesecond.OneDayApp
+import com.onedayonesecond.data.BackfillProgress
 import com.onedayonesecond.data.JournalPrefs
 import com.onedayonesecond.ui.theme.MessageAction
 import com.onedayonesecond.work.Reminders
@@ -25,6 +26,8 @@ data class SettingsUiState(
     val tagPlaces: Boolean = true,
     /** How many seconds are waiting in Recently deleted. */
     val deletedCount: Int = 0,
+    /** Where writing past recaps stands, for the row's second line. */
+    val backfill: BackfillProgress = BackfillProgress(),
 )
 
 /**
@@ -44,7 +47,7 @@ class SettingsViewModel(private val app: OneDayApp) : ViewModel() {
         app.container.repository.observeDeleted(),
     ) { name, reminderEnabled, reminderTime, tagPlaces, deleted ->
         SettingsUiState(name, reminderEnabled, reminderTime, tagPlaces, deleted.size)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
+    }.combine(prefs.backfill) { state, backfill -> state.copy(backfill = backfill) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     /** Whether the phone lets the app know where it is. Asked again each time, since it can change outside the app. */
     val hasLocationPermission: Boolean
