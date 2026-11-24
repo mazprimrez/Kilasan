@@ -1,4 +1,4 @@
-"""The journal's AI backend: four endpoints in front of Gemini on Vertex AI.
+"""The journal's AI backend: five endpoints in front of Gemini on Vertex AI.
 
 Run with `uvicorn app.main:create_app --factory`. The contract with the app is in
 docs/JOURNAL_BACKEND.md.
@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import book_recap, extraction, model, recap, settings as settings_module, transcription
+from . import book_recap, extraction, model, recap, settings as settings_module, tag, transcription
 from .auth import TokenVerifier, google_verifier, require_owner
 from .errors import ApiError
 from .settings import Settings
@@ -64,6 +64,15 @@ def create_app(
         except ValueError:
             raise ApiError(400, "The recap request must be JSON.")
         return await recap.write_recap(recap.check_request(parsed))
+
+    @api.post("/tag")
+    async def tag_entries(request: Request) -> dict:
+        body = await _read_body(request, MAX_RECAP_BYTES)
+        try:
+            parsed = json.loads(body)
+        except ValueError:
+            raise ApiError(400, "The tag request must be JSON.")
+        return await tag.tag_entries(tag.check_request(parsed))
 
     @api.post("/book-recap")
     async def write_book_recap(request: Request) -> dict:

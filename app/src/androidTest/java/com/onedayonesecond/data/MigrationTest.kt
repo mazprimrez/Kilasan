@@ -14,8 +14,9 @@ import org.junit.runner.RunWith
 import java.time.LocalDate
 
 /**
- * Runs the real migrations on a real database, from the version on phones today (4)
- * with recaps already written in the old layout, and checks Room accepts the result.
+ * Runs the real migrations on a real database, from version 4 with recaps already
+ * written in the old layout, through version 6 and its tags table, and checks Room
+ * accepts the result.
  */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
@@ -95,12 +96,57 @@ class MigrationTest {
             execSQL("INSERT INTO clips (date, filePath, durationMs, createdAt) VALUES (20000, '/x.mp4', 1000, 1)")
             close()
         }
-        helper.runMigrationsAndValidate(FULL, 5, true, *AppDatabase.ALL_MIGRATIONS).close()
+        helper.runMigrationsAndValidate(FULL, 6, true, *AppDatabase.ALL_MIGRATIONS).close()
+    }
+
+    @Test
+    fun version6AddsAnEmptyTagsTableAndKeepsEveryEntry() {
+        seedVersion4(TAGS)
+        helper.runMigrationsAndValidate(TAGS, 5, true, AppDatabase.MIGRATION_4_5).close()
+
+        // Validates every table, entry_tags and its two indices included, against 6.json.
+        val db = helper.runMigrationsAndValidate(TAGS, 6, true, AppDatabase.MIGRATION_5_6)
+
+        db.query("SELECT text FROM entries").use { c ->
+            assertEquals(1, c.count)
+            c.moveToFirst()
+            assertEquals("Coffee before work.", c.getString(0))
+        }
+        db.query("SELECT COUNT(*) FROM entry_tags").use { c ->
+            c.moveToFirst()
+            assertEquals(0, c.getInt(0))
+        }
+        db.query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'entry_tags' ORDER BY name").use { c ->
+            val names = generateSequence { if (c.moveToNext()) c.getString(0) else null }.toList()
+            assertEquals(listOf("index_entry_tags_entryId", "index_entry_tags_kind_value"), names)
+        }
+        db.close()
+    }
+
+    @Test
+    fun deletingAnEntryDeletesItsTags() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        try {
+            runBlocking {
+                val id = database.journalDao().insertEntry(
+                    Entry(date = entryDate, createdAt = 1, type = EntryType.WRITTEN, text = "Gym.", processing = ProcessingState.DONE),
+                )
+                database.tagDao().replaceTags(id, listOf(EntryTag(entryId = id, kind = EntryTag.KIND_HABIT, value = "Gym", taggedAt = 1, sourceHash = "h")))
+                assertEquals(1, database.tagDao().allTags().size)
+                database.tagDao().deleteEntry(id)
+                assertTrue(database.tagDao().allTags().isEmpty())
+                assertTrue(database.journalDao().allEntries().isEmpty())
+            }
+        } finally {
+            database.close()
+        }
     }
 
     private companion object {
         const val DB = "migration-test"
         const val OPENED = "migration-opened"
         const val FULL = "migration-full"
+        const val TAGS = "migration-tags"
     }
 }

@@ -20,6 +20,12 @@ import com.onedayonesecond.data.Entry
 import com.onedayonesecond.data.EntryType
 import com.onedayonesecond.data.Mood
 import com.onedayonesecond.data.Recap
+import com.onedayonesecond.journal.DatedNote
+import com.onedayonesecond.journal.PeriodStats
+import com.onedayonesecond.journal.RecapLetter
+import com.onedayonesecond.journal.RecapThread
+import com.onedayonesecond.journal.TagHash
+import com.onedayonesecond.journal.TagSet
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -42,7 +48,9 @@ import java.util.concurrent.TimeUnit
  *
  * The week of 16 to 22 November 2026 gets a second, a mood and entries every day; the
  * week before gets four days; October gets enough scattered days for past recaps to be
- * offered; and the week of 9 November gets a recap in the old layout.
+ * offered; the week of 9 November gets a recap in the old layout; and the week of
+ * 16 November gets a letter in the new layout, with its summary. Every entry is given
+ * the tags /tag would give it, so Patterns has something to count without a server.
  */
 @RunWith(AndroidJUnit4::class)
 class DemoSeed {
@@ -147,14 +155,16 @@ class DemoSeed {
             // October: scattered days, enough for a few past weeks and the month to be offered.
             val october = listOf(5, 6, 8, 12, 14, 15, 20, 21, 23, 27).map { LocalDate.of(2026, 10, it) }
             october.forEachIndexed { i, date ->
-                container.journal.putEntry(
+                val text = OCTOBER[i % OCTOBER.size]
+                val put = container.journal.putEntry(
                     Entry(
                         date = date,
                         createdAt = date.atTime(LocalTime.of(21, 0)).atZone(zone).toInstant().toEpochMilli(),
                         type = EntryType.WRITTEN,
-                        text = OCTOBER[i % OCTOBER.size],
+                        text = text,
                     ),
                 )
+                tag(container, put)
                 container.journal.setMood(date, Mood.entries[(i * 3) % 5])
             }
 
@@ -171,13 +181,49 @@ class DemoSeed {
                     createdAt = LocalDate.of(2026, 11, 15).atTime(21, 5).atZone(zone).toInstant().toEpochMilli(),
                 ),
             )
+
+            // This week's letter in the new layout, as the server would write it.
+            container.journal.saveRecap(
+                Recap(
+                    key = "week-2026-11-16",
+                    title = "The week of the Tech Cantik talk",
+                    quote = "Honestly I'm scared, ngomong di depan 100 orang itu bukan aku banget.",
+                    quoteDate = LocalDate.of(2026, 11, 18),
+                    json = THIS_WEEK.encode(),
+                    createdAt = LocalDate.of(2026, 11, 22).atTime(21, 5).atZone(zone).toInstant().toEpochMilli(),
+                    schemaVersion = Recap.LAYOUT_V2,
+                ),
+            )
         }
+    }
+
+    /** The tags /tag would give this entry, stored against its words as they are. */
+    private suspend fun tag(container: AppContainer, entry: Entry) {
+        val text = entry.text ?: return
+        val lower = text.lowercase()
+        fun has(vararg words: String) = words.any { it in lower }
+        val topics = buildList {
+            if (has("kerja", "refactor", "pr ", "bug", "meeting", "deadline", "deck", "sprint", "ngoding", "inbox", "klien")) add("Work")
+            if (has("talk", "tech cantik", "rehearsal", "speaker", "slide", "presentasi")) add("Public speaking")
+            if (has("ibu")) add("Family")
+            if (has("tidur")) add("Sleep")
+            if (has("comfort")) add("Comfort vs adrenaline")
+            if (has("blog")) add("Writing")
+        }.take(3)
+        val habits = buildList {
+            if (has("gym") && !has("skip gym")) add("Gym")
+            if (has("jalan sore")) add("Walking")
+            if (has("lari")) add("Running")
+            if (has("blog")) add("Writing")
+        }
+        val people = listOf("Raka", "Ibu", "Dinda").filter { it in text }
+        container.journal.setTags(entry.id, TagSet(topics, habits, people), TagHash.of(text)!!)
     }
 
     private suspend fun put(container: AppContainer, day: Day) {
         val date = LocalDate.parse(day.date)
         for ((time, text) in day.entries) {
-            container.journal.putEntry(
+            val put = container.journal.putEntry(
                 Entry(
                     date = date,
                     createdAt = date.atTime(LocalTime.parse(time)).atZone(zone).toInstant().toEpochMilli(),
@@ -186,6 +232,7 @@ class DemoSeed {
                     placeName = day.place,
                 ),
             )
+            tag(container, put)
         }
         container.journal.setMood(date, day.mood)
         container.journal.setPlace(date, day.place)
@@ -235,6 +282,31 @@ class DemoSeed {
     }
 
     private companion object {
+        private fun d(day: Int) = LocalDate.of(2026, 11, day)
+
+        val THIS_WEEK = RecapLetter(
+            howYouFelt = "The two gym days (Mon, Tue) were your best start; Wednesday, after four hours of sleep, was the lowest.",
+            howYouFeltDays = listOf(d(16), d(17), d(18)),
+            threads = listOf(
+                RecapThread("Tech Cantik", "Slides until 1am on Wednesday, a rehearsal with Dinda on Thursday, the talk on Saturday.", listOf(d(18), d(19), d(21), d(22))),
+                RecapThread("Raka's PR", "Asked for on Tuesday, still pushed back on Thursday.", listOf(d(17), d(19))),
+                RecapThread("Comfort or adrenaline", "Friday's walk at GBK, and again on Sunday with the speaker offer.", listOf(d(20), d(22))),
+            ),
+            wins = listOf(DatedNote("Deadlift PR at 80 kg", d(17)), DatedNote("Gave the talk at Tech Cantik", d(21))),
+            stillOpen = listOf(DatedNote("The checkout bug still has no known cause", d(18))),
+            note = "You were scared of the stage on Wednesday and on it by Saturday, hands shaking for two minutes and then fine. " +
+                "Raka's review kept sliding while the talk took the room.",
+            question = "You wrote about comfort and adrenaline twice. Which one is the speaker offer?",
+            summary = "The week opened with gym on Monday and a deadlift PR on Tuesday, and Raka asked for a review of the checkout PR before Friday. " +
+                "That night you had sate with Ibu, who talked about her arisan and her tomatoes. " +
+                "On Wednesday you barely slept after working on the Tech Cantik slides, and the checkout bug came back in production. " +
+                "Dinda heard a rehearsal on Thursday and said the opening was too long. " +
+                "You walked at GBK on Friday instead of the gym, gave the talk on Saturday, and wrote it up on your blog on Sunday.",
+            stats = PeriodStats(daysKept = 7, daysWritten = 7, words = 260, averageMood = 26.0 / 7),
+            previousStats = PeriodStats(daysKept = 4, daysWritten = 4, words = 55, averageMood = 3.5),
+            hadEarlier = true,
+        )
+
         val OCTOBER = listOf(
             "Sprint planning, terus ngoding sampai sore.",
             "Ke Bandung sama anak-anak kantor lama. Dingin tapi seru.",

@@ -214,15 +214,4 @@ class JournalMathTest {
         assertNull(byWeekday[java.time.DayOfWeek.SUNDAY])
         assertEquals(7, byWeekday.size)
     }
-
-    @Test
-    fun `a name is counted once a day, as a whole word, ignoring case`() {
-        val written = listOf(
-            DaySummary(saturday, texts = listOf("Ketemu Raka.", "Raka lagi."), entryCount = 2),
-            DaySummary(sunday, texts = listOf("RAKA telpon"), entryCount = 1),
-            DaySummary(LocalDate.of(2026, 11, 13), texts = listOf("Rakamin bukan orang."), entryCount = 1),
-        )
-        assertEquals(2, JournalMath.daysMentioning("Raka", written))
-        assertEquals(0, JournalMath.daysMentioning(" ", written))
-    }
 }

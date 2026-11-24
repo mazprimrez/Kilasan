@@ -59,16 +59,17 @@ object SinceLast {
     }
 
     /**
-     * Mood is compared by the word it rounds to, not by its decimals: 3.6 and 3.9 are
-     * both "mostly good", and saying it went up between them would be noise.
+     * Mood is compared by the word its average rounds to, not by its decimals: 3.6 and
+     * 3.9 are both "good", and saying it went up between them would be noise. It is
+     * always called an average: an average of good does not mean most days were good.
      */
     fun moodLine(from: Double?, to: Double?): Line? {
         val now = to?.let(::moodOf) ?: return null
-        val before = from?.let(::moodOf) ?: return Line(null, "Your mood was ${moodWord(now)}.", now)
+        val before = from?.let(::moodOf) ?: return Line(null, "Your average mood was ${moodWord(now)}.", now)
         return when {
-            now.score > before.score -> Line(Direction.UP, "Your mood was ${moodWord(now)}, up from ${moodWord(before)}.", now)
-            now.score < before.score -> Line(Direction.DOWN, "Your mood was ${moodWord(now)}, down from ${moodWord(before)}.", now)
-            else -> Line(Direction.SAME, "Your mood stayed ${moodWord(now)}.", now)
+            now.score > before.score -> Line(Direction.UP, "Your average mood was ${moodWord(now)}, up from ${moodWord(before)}.", now)
+            now.score < before.score -> Line(Direction.DOWN, "Your average mood was ${moodWord(now)}, down from ${moodWord(before)}.", now)
+            else -> Line(Direction.SAME, "Your average mood stayed ${moodWord(now)}.", now)
         }
     }
 
@@ -78,8 +79,8 @@ object SinceLast {
         return Mood.entries.first { it.score == score }
     }
 
-    /** "mostly good". */
-    fun moodWord(mood: Mood): String = "mostly ${mood.label.lowercase()}"
+    /** "good": the word for the mood an average rounds to. Sentences around it say "average". */
+    fun moodWord(mood: Mood): String = mood.label.lowercase()
 
     private fun totals(stats: PeriodStats, locale: Locale): List<Line> {
         val number = NumberFormat.getIntegerInstance(locale)
@@ -88,7 +89,7 @@ object SinceLast {
             Line(null, count(stats.daysKept, "day kept", "days kept")),
             Line(null, count(stats.daysWritten, "day written", "days written")),
             Line(null, count(stats.words, "word", "words")),
-            stats.averageMood?.let(::moodOf)?.let { Line(null, "Your mood was ${moodWord(it)}", it) },
+            stats.averageMood?.let(::moodOf)?.let { Line(null, "Your average mood was ${moodWord(it)}", it) },
         )
     }
 }

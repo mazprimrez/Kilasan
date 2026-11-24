@@ -42,6 +42,9 @@ object Palette {
     /** The tab bar, tinted cards, the search bar, the circles behind list icons. */
     val BlushTint = Color(0xFFFDF2F6)
 
+    /** Chart bars that are not the top value: a deeper blush, so Rose stays the one highlight. */
+    val BlushDeep = Color(0xFFF7BDD0)
+
     /** 1 dp dividers, and the frames of days that have not come yet. */
     val Hairline = Color(0xFFF1E6EA)
 

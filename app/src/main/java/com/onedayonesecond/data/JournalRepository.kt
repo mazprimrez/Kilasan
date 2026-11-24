@@ -1,14 +1,16 @@
 package com.onedayonesecond.data
 
+import com.onedayonesecond.journal.TagSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 
-/** The diary side of a day: its mood and place, its entries, and the recaps written from them. */
+/** The diary side of a day: its mood and place, its entries and their tags, and the recaps written from them. */
 class JournalRepository(
     private val dao: JournalDao,
+    private val tagDao: TagDao,
     val storage: ClipStorage,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
@@ -141,10 +143,34 @@ class JournalRepository(
      */
     suspend fun finishTypingOut(id: Long, text: String): Boolean = dao.finishTypingOut(id, text.trim(), now()) > 0
 
+    /** Deletes the entry, its tags and its file. */
     suspend fun deleteEntry(entry: Entry) = withContext(Dispatchers.IO) {
-        dao.deleteEntry(entry)
+        tagDao.deleteEntry(entry.id)
         entry.mediaFile?.delete()
     }
+
+    fun observeEntriesVersion(): Flow<String> = dao.observeEntriesVersion()
+
+    // Tags
+
+    fun observeTagsBetween(start: LocalDate, end: LocalDate): Flow<List<EntryTag>> = tagDao.observeTagsBetween(start, end)
+
+    suspend fun tagsBetween(start: LocalDate, end: LocalDate): List<EntryTag> = tagDao.tagsBetween(start, end)
+
+    suspend fun allTags(): List<EntryTag> = tagDao.allTags()
+
+    /** Entry id to the fingerprint of the words its tags describe. */
+    suspend fun taggedHashes(): Map<Long, String> = tagDao.taggedHashes().associate { it.entryId to it.sourceHash }
+
+    fun observeTaggedHashes(): Flow<List<TaggedHash>> = tagDao.observeTaggedHashes()
+
+    /** The names used so far per kind, most used first. */
+    suspend fun vocabulary(): Map<String, List<String>> =
+        tagDao.vocabulary().groupBy({ it.kind }, { it.value })
+
+    /** Stores [tags] as everything [entryId] is about, in place of what it had. */
+    suspend fun setTags(entryId: Long, tags: TagSet, sourceHash: String) =
+        tagDao.replaceTags(entryId, tags.rows(entryId, sourceHash, now()))
 
     fun observeRecap(key: String): Flow<Recap?> = dao.observeRecap(key)
 

@@ -283,6 +283,20 @@ object LineIcons {
     }
 
     /** A letter: a page with lines on it. */
+    val Person = icon("Person") {
+        circle(12f, 8f, 3.5f)
+        moveTo(5f, 20f)
+        curveTo(5.5f, 15.5f, 8.5f, 13.5f, 12f, 13.5f)
+        curveTo(15.5f, 13.5f, 18.5f, 15.5f, 19f, 20f)
+    }
+
+    /** Three bars, for Patterns and the tags it counts from. */
+    val Bars = icon("Bars") {
+        moveTo(6f, 20f); lineTo(6f, 13f)
+        moveTo(12f, 20f); lineTo(12f, 5f)
+        moveTo(18f, 20f); lineTo(18f, 10f)
+    }
+
     val Letter = icon("Letter") {
         moveTo(6f, 3f); lineTo(15f, 3f); lineTo(19f, 7f); lineTo(19f, 21f); lineTo(6f, 21f); close()
         moveTo(9f, 11f); lineTo(16f, 11f)

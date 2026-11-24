@@ -157,17 +157,56 @@ def test_lists_are_cut_to_what_the_page_has_room_for(client, fake, owner):
     assert len(body["stillOpen"]) == recap.MAX_OPEN
 
 
-def test_people_and_topics_only_come_with_a_month_or_a_year(client, fake, owner):
-    named = {**WEEK_ANSWER, "topPeople": [{"name": "Ibu", "count": 2}], "topTopics": [{"name": "Kerjaan", "count": 3}]}
-    fake.answer = named
-    assert post(client, owner, sample("week")).json()["topPeople"] == []
-
+def test_the_recap_names_no_people_or_topics_any_more(client, fake, owner):
+    # People and topics are counted on the phone from /tag's tags; a model that still
+    # sends them is not passed on.
     month = sample("month")
     first = month["entries"][0]
-    fake.answer = {**named, "quote": {"text": first["text"], "date": first["date"]}}
+    fake.answer = {
+        **WEEK_ANSWER,
+        "quote": {"text": first["text"], "date": first["date"]},
+        "topPeople": [{"name": "Ibu", "count": 2}],
+        "topTopics": [{"name": "Kerjaan", "count": 3}],
+    }
+
     body = post(client, owner, month).json()
-    assert body["topPeople"] == [{"name": "Ibu", "count": 2}]
-    assert body["topTopics"] == [{"name": "Kerjaan", "count": 3}]
+
+    assert "topPeople" not in body and "topTopics" not in body
+    assert "topPeople" not in json.dumps(recap.SCHEMA)
+
+
+# The summary
+
+
+def test_the_summary_comes_back_trimmed(client, fake, owner):
+    fake.answer = {**WEEK_ANSWER, "summary": "  On Monday the deadline moved.  "}
+
+    body = post(client, owner, sample("week")).json()
+
+    assert body["summary"] == "On Monday the deadline moved."
+    assert "summary" in recap.SCHEMA["required"]
+
+
+@pytest.mark.parametrize("summary", [None, "", "   "])
+def test_a_recap_without_a_summary_is_asked_for_again(client, fake, owner, summary):
+    missing = {k: v for k, v in WEEK_ANSWER.items() if k != "summary"}
+    if summary is not None:
+        missing["summary"] = summary
+    fake.answers = [missing, WEEK_ANSWER]
+
+    response = post(client, owner, sample("week"))
+
+    assert response.status_code == 200
+    assert response.json()["summary"] == WEEK_ANSWER["summary"]
+    assert len(fake.calls) == 2
+    assert "summary" in fake.calls[1].parts[-1].text
+
+
+def test_the_prompt_asks_for_the_summary_in_time_order():
+    prompt = recap.PROMPT_PATH.read_text(encoding="utf-8")
+
+    assert "`summary`" in prompt and "time order" in prompt
+    assert "topPeople" not in prompt
 
 
 def test_a_year_has_no_day_by_day(client, fake, owner):

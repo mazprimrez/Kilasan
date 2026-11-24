@@ -22,6 +22,7 @@ import com.onedayonesecond.data.JournalRepository
 import com.onedayonesecond.data.PendingBookRemovals
 import com.onedayonesecond.data.PendingDriveRemovals
 import com.onedayonesecond.journal.EntryProcessor
+import com.onedayonesecond.journal.EntryTagger
 import com.onedayonesecond.journal.JournalActions
 import com.onedayonesecond.journal.RecapGenerator
 import com.onedayonesecond.location.PlaceFinder
@@ -59,7 +60,7 @@ class AppContainer(context: Context) {
 
     val storage by lazy { ClipStorage(appContext) }
     val repository by lazy { ClipRepository(database.clipDao(), storage, database.deletedClipDao()) }
-    val journal by lazy { JournalRepository(database.journalDao(), storage) }
+    val journal by lazy { JournalRepository(database.journalDao(), database.tagDao(), storage) }
     val pendingBookRemovals by lazy { PendingBookRemovals(appContext) }
     val books by lazy { BookRepository(database.bookDao(), storage, pendingBookRemovals) }
     val journalPrefs by lazy { JournalPrefs(appContext) }
@@ -68,6 +69,7 @@ class AppContainer(context: Context) {
     val ai: JournalAi by lazy { BackendJournalAi(BuildConfig.JOURNAL_BACKEND_URL, backendAuth) }
     val entryProcessor by lazy { EntryProcessor(journal, ai) }
     val journalActions by lazy { JournalActions(appContext, journal, places, entryProcessor, appScope) }
+    val entryTagger by lazy { EntryTagger(journal, ai) }
     val recapGenerator by lazy { RecapGenerator(repository, journal, ai, journalPrefs) }
     val bookLookup by lazy { BookLookup(newScratchFile = storage::newScratchFile) }
     val thoughtProcessor by lazy { ThoughtProcessor(books, ai) }

@@ -12,26 +12,14 @@ data class RecapThread(val title: String, val line: String, val days: List<Local
 data class DatedNote(val text: String, val date: LocalDate)
 
 /**
- * A person or topic that came up, with the days it came up on and the same count for
- * the period before. [previous] is null when there is no recap of that period in this
- * layout to compare with, so no arrow is drawn; 0 means it is new.
- */
-data class Mention(val name: String, val count: Int, val previous: Int? = null) {
-    val direction: Direction?
-        get() = previous?.let {
-            when {
-                count > it -> Direction.UP
-                count < it -> Direction.DOWN
-                else -> Direction.SAME
-            }
-        }
-}
-
-/**
  * The chapters of a recap in layout 2, as stored in `Recap.json`. The words come from
- * the model; every number (the stats, the mention counts, days per place) was worked
- * out on the phone when the recap was written and is kept with it, so "Since last
- * week" says what was true then.
+ * the model; every number (the stats, days per place) was worked out on the phone when
+ * the recap was written and is kept with it, so "Since last week" says what was true
+ * then. People and topics are not kept here: the Patterns chapter counts them from the
+ * entries' tags whenever the letter is opened.
+ *
+ * Letters written before the summary existed have none (an empty [summary]); their
+ * `topPeople`/`topTopics` are ignored.
  *
  * ```
  * {
@@ -41,7 +29,7 @@ data class Mention(val name: String, val count: Int, val previous: Int? = null) 
  *   "wins": [{"text": "…", "date": "2026-11-21"}],
  *   "stillOpen": [{"text": "…", "date": "2026-11-19"}],
  *   "note": "…", "question": "…",
- *   "topPeople": [{"name": "Ibu", "count": 4, "previous": 2}], "topTopics": [],
+ *   "summary": "On Monday the deadline moved…",
  *   "places": [{"name": "Jakarta Selatan", "days": 212}],
  *   "stats": {"daysKept": 7, "daysWritten": 6, "words": 2310, "averageMood": 3.6},
  *   "previousStats": null, "hadEarlier": false
@@ -57,8 +45,8 @@ data class RecapLetter(
     val stillOpen: List<DatedNote> = emptyList(),
     val note: String = "",
     val question: String = "",
-    val topPeople: List<Mention> = emptyList(),
-    val topTopics: List<Mention> = emptyList(),
+    /** What happened, in time order. Patterns shows it under "The week, in short". */
+    val summary: String = "",
     val places: List<PlaceDays> = emptyList(),
     val stats: PeriodStats = PeriodStats(0, 0, 0, null),
     /** The period before, as it was when this was written. Null if it had nothing at all. */
@@ -78,8 +66,7 @@ data class RecapLetter(
         .put("stillOpen", notes(stillOpen))
         .put("note", note)
         .put("question", question)
-        .put("topPeople", mentions(topPeople))
-        .put("topTopics", mentions(topTopics))
+        .put("summary", summary)
         .put("places", JSONArray(places.map { JSONObject().put("name", it.name).put("days", it.days) }))
         .put("stats", stats.toJson())
         .put("previousStats", previousStats?.toJson() ?: JSONObject.NULL)
@@ -114,8 +101,7 @@ data class RecapLetter(
                 stillOpen = root.notes("stillOpen"),
                 note = root.optString("note").trim(),
                 question = root.optString("question").trim(),
-                topPeople = root.mentions("topPeople"),
-                topTopics = root.mentions("topTopics"),
+                summary = root.optString("summary").trim(),
                 places = root.objects("places").mapNotNull { place ->
                     val name = place.optString("name").trim()
                     val days = place.optInt("days")
@@ -133,12 +119,6 @@ data class RecapLetter(
 
         private fun notes(notes: List<DatedNote>) =
             JSONArray(notes.map { JSONObject().put("text", it.text).put("date", it.date.toString()) })
-
-        private fun mentions(mentions: List<Mention>) = JSONArray(
-            mentions.map {
-                JSONObject().put("name", it.name).put("count", it.count).put("previous", it.previous ?: JSONObject.NULL)
-            },
-        )
 
         private fun PeriodStats.toJson(): JSONObject = JSONObject()
             .put("daysKept", daysKept)
@@ -167,19 +147,6 @@ data class RecapLetter(
             val text = note.optString("text").trim()
             val date = date(note.optString("date"))
             if (text.isEmpty() || date == null) null else DatedNote(text, date)
-        }
-
-        private fun JSONObject.mentions(name: String): List<Mention> = objects(name).mapNotNull { mention ->
-            val label = mention.optString("name").trim()
-            if (label.isEmpty()) {
-                null
-            } else {
-                Mention(
-                    name = label,
-                    count = mention.optInt("count").coerceAtLeast(0),
-                    previous = if (!mention.has("previous") || mention.isNull("previous")) null else mention.optInt("previous"),
-                )
-            }
         }
     }
 }

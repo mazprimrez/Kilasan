@@ -6,6 +6,9 @@ import com.onedayonesecond.data.BookThought
 import com.onedayonesecond.data.ClipEntity
 import com.onedayonesecond.data.DayMeta
 import com.onedayonesecond.data.Entry
+import com.onedayonesecond.data.EntryTag
+import com.onedayonesecond.journal.TagHash
+import com.onedayonesecond.journal.TagSet
 import com.onedayonesecond.data.ProcessingState
 import com.onedayonesecond.data.Recap
 import com.onedayonesecond.data.ClipRepository
@@ -407,6 +410,7 @@ class DriveBackup(
                 media = file?.name,
                 place = entry.placeName,
                 updatedAt = entry.updatedAt,
+                tags = day.tagsOf(entry),
             )
         }
 
@@ -726,7 +730,11 @@ class DriveBackup(
             // A voice note or page that was backed up before its words were typed out
             // picks up where it left off.
             val waiting = restored.needsText && entry.text == null
-            journal.putEntry(if (waiting) restored.copy(processing = ProcessingState.PENDING) else restored)
+            val put = journal.putEntry(if (waiting) restored.copy(processing = ProcessingState.PENDING) else restored)
+            // Tags come back with their entry while they still describe its words; otherwise
+            // (or in a backup from before tags) the entry is simply tagged again.
+            val tags = entry.tags
+            if (tags != null && tags.hash == TagHash.of(put.text)) journal.setTags(put.id, tags.tags, tags.hash)
         }
         if (day.mood != null || day.place != null) journal.putMeta(DayMeta(day.date, day.mood, day.place))
     }
@@ -744,8 +752,20 @@ class DriveBackup(
         return true
     }
 
-    /** A day's journal on the phone: its mood and place (if any) and its entries. */
-    private class LocalDay(val date: LocalDate, val meta: DayMeta?, val entries: List<Entry>)
+    /** A day's journal on the phone: its mood and place (if any), its entries and their tags. */
+    private class LocalDay(
+        val date: LocalDate,
+        val meta: DayMeta?,
+        val entries: List<Entry>,
+        val tags: Map<Long, List<EntryTag>> = emptyMap(),
+    ) {
+        /** The entry's tags, only while they describe its words as they are. */
+        fun tagsOf(entry: Entry): TagsBackup? {
+            val rows = tags[entry.id].orEmpty()
+            val hash = rows.firstOrNull()?.sourceHash ?: return null
+            return if (hash == TagHash.of(entry.text)) TagsBackup(hash, TagSet.of(rows)) else null
+        }
+    }
 
     /** A book on the phone with its thoughts. */
     private class LocalBook(val book: Book, val thoughts: List<BookThought>)
@@ -758,7 +778,8 @@ class DriveBackup(
     private suspend fun localJournal(): List<LocalDay> {
         val metas = journal.allMeta().filter { it.mood != null || it.placeName != null }.associateBy { it.date }
         val entries = journal.allEntries().groupBy { it.date }
-        return (metas.keys + entries.keys).sorted().map { LocalDay(it, metas[it], entries[it].orEmpty()) }
+        val tags = journal.allTags().groupBy { it.entryId }
+        return (metas.keys + entries.keys).sorted().map { LocalDay(it, metas[it], entries[it].orEmpty(), tags) }
     }
 
     private suspend fun localClips(): List<ClipEntity> =

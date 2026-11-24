@@ -14,6 +14,7 @@ import com.onedayonesecond.data.ClipEntity
 import com.onedayonesecond.data.Mood
 import com.onedayonesecond.data.Recap
 import com.onedayonesecond.data.RecapFailure
+import com.onedayonesecond.journal.Patterns
 import com.onedayonesecond.journal.RecapContent
 import com.onedayonesecond.journal.RecapGenerator
 import com.onedayonesecond.journal.RecapLabels
@@ -22,6 +23,7 @@ import com.onedayonesecond.journal.RecapPeriod
 import com.onedayonesecond.journal.RecapRules
 import com.onedayonesecond.journal.RecapSource
 import com.onedayonesecond.ui.nav.Routes
+import com.onedayonesecond.ui.patterns.observePatterns
 import com.onedayonesecond.ui.theme.MessageAction
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -73,6 +75,8 @@ data class RecapUiState(
     val staleness: RecapSource.Staleness? = null,
     /** Whether "Write this recap again" can be offered at all. */
     val canRewrite: Boolean = false,
+    /** The period's Patterns, counted now, for the chapter at the end of the letter. */
+    val patterns: Patterns? = null,
 )
 
 @UnstableApi
@@ -118,7 +122,8 @@ class RecapViewModel(
         container.journal.observeRecap(period.key),
         writingState,
         container.journalPrefs.name,
-    ) { days, recap, (writing, rewriteFailure, failure), name ->
+        container.observePatterns(period, LocalDate.now()),
+    ) { days, recap, (writing, rewriteFailure, failure), name, patterns ->
         val inProgress = period.key in writing
         val status = when {
             recap != null -> RecapStatus.Ready(
@@ -148,6 +153,7 @@ class RecapViewModel(
             rewriteFailure = if (recap != null && !inProgress) rewriteFailure?.let(::reason) else null,
             staleness = staleness,
             canRewrite = recap != null && container.recapGenerator.isConfigured,
+            patterns = patterns,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecapUiState(period))
 

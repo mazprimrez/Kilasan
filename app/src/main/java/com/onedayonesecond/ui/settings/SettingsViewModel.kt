@@ -9,6 +9,8 @@ import com.onedayonesecond.OneDayApp
 import com.onedayonesecond.data.BackfillProgress
 import com.onedayonesecond.data.JournalPrefs
 import com.onedayonesecond.ui.theme.MessageAction
+import com.onedayonesecond.journal.EntryTagger
+import com.onedayonesecond.work.JournalWork
 import com.onedayonesecond.work.Reminders
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,11 @@ data class SettingsUiState(
     val deletedCount: Int = 0,
     /** Where writing past recaps stands, for the row's second line. */
     val backfill: BackfillProgress = BackfillProgress(),
+    /** Whether Patterns shows the people entries mention. */
+    val showPeople: Boolean = true,
+    /** How many entries have tags for Patterns; null when this build has no AI service. */
+    val tagging: EntryTagger.Progress? = null,
+    val taggingStopped: Boolean = false,
 )
 
 /**
@@ -47,7 +54,13 @@ class SettingsViewModel(private val app: OneDayApp) : ViewModel() {
         app.container.repository.observeDeleted(),
     ) { name, reminderEnabled, reminderTime, tagPlaces, deleted ->
         SettingsUiState(name, reminderEnabled, reminderTime, tagPlaces, deleted.size)
-    }.combine(prefs.backfill) { state, backfill -> state.copy(backfill = backfill) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
+    }.combine(prefs.backfill) { state, backfill -> state.copy(backfill = backfill) }
+        .combine(prefs.showPeopleInPatterns) { state, show -> state.copy(showPeople = show) }
+        .combine(app.container.entryTagger.progress()) { state, progress ->
+            state.copy(tagging = progress.takeIf { app.container.entryTagger.isConfigured })
+        }
+        .combine(prefs.taggingStopped) { state, stopped -> state.copy(taggingStopped = stopped) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     /** Whether the phone lets the app know where it is. Asked again each time, since it can change outside the app. */
     val hasLocationPermission: Boolean
@@ -81,6 +94,18 @@ class SettingsViewModel(private val app: OneDayApp) : ViewModel() {
             prefs.setTagPlaces(enabled)
             // Asked here, so the add sheet does not ask a second time.
             if (enabled) prefs.setLocationAsked()
+        }
+    }
+
+    fun setShowPeople(show: Boolean) {
+        viewModelScope.launch { prefs.setShowPeopleInPatterns(show) }
+    }
+
+    /** Stops or resumes tagging entries for Patterns. What is tagged stays either way. */
+    fun setTaggingStopped(stopped: Boolean) {
+        viewModelScope.launch {
+            prefs.setTaggingStopped(stopped)
+            if (stopped) JournalWork.stopTagging(app) else JournalWork.tagWhenOnline(app)
         }
     }
 

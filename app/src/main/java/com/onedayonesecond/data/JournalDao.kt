@@ -1,7 +1,6 @@
 package com.onedayonesecond.data
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
@@ -54,6 +53,13 @@ interface JournalDao {
     @Query("SELECT MIN(date) FROM entries")
     suspend fun earliestEntryDate(): LocalDate?
 
+    /**
+     * Changes whenever an entry is added, deleted or has its words changed: what starts
+     * tagging in the background.
+     */
+    @Query("SELECT COUNT(*) || ':' || IFNULL(MAX(updatedAt), 0) || ':' || IFNULL(SUM(id), 0) FROM entries")
+    fun observeEntriesVersion(): Flow<String>
+
     /** Every day that has at least one entry, for working out which recaps can be written. */
     @Query("SELECT DISTINCT date FROM entries ORDER BY date ASC")
     suspend fun entryDates(): List<LocalDate>
@@ -87,9 +93,6 @@ interface JournalDao {
     /** Never moves a finished entry back to waiting or failed. */
     @Query("UPDATE entries SET processing = :state WHERE id = :id AND processing != 'DONE'")
     suspend fun setEntryProcessing(id: Long, state: ProcessingState)
-
-    @Delete
-    suspend fun deleteEntry(entry: Entry)
 
     // Recaps
 

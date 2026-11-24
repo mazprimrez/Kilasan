@@ -39,7 +39,6 @@ import com.onedayonesecond.data.Mood
 import com.onedayonesecond.journal.DatedNote
 import com.onedayonesecond.journal.Direction
 import com.onedayonesecond.journal.JournalMath
-import com.onedayonesecond.journal.Mention
 import com.onedayonesecond.journal.RecapLabels
 import com.onedayonesecond.journal.RecapLetter
 import com.onedayonesecond.journal.RecapPeriod
@@ -52,6 +51,12 @@ import com.onedayonesecond.ui.theme.MetaText
 import com.onedayonesecond.ui.theme.MoodFace
 import com.onedayonesecond.ui.theme.Palette
 import com.onedayonesecond.ui.theme.ProgressLine
+import com.onedayonesecond.journal.Patterns
+import com.onedayonesecond.journal.PatternsWords
+import com.onedayonesecond.ui.patterns.Bar
+import com.onedayonesecond.ui.patterns.CountBars
+import com.onedayonesecond.ui.theme.TextAction
+import androidx.compose.foundation.layout.offset
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -59,8 +64,8 @@ import java.util.Locale
 
 /**
  * The chapters of a recap in layout 2: how you felt, what was on your mind, wins, what
- * is still open, the note, a question, since last time, and for longer periods who and
- * what came up most. Days are always chips that open that day's page.
+ * is still open, the note, a question, since last time, where you were (a year), and a
+ * short Patterns chapter. Days are always chips that open that day's page.
  */
 @Composable
 internal fun LetterChapters(
@@ -68,7 +73,9 @@ internal fun LetterChapters(
     letter: RecapLetter,
     name: String,
     moods: Map<LocalDate, Mood>,
+    patterns: Patterns?,
     onOpenDay: (LocalDate) -> Unit,
+    onOpenPatterns: () -> Unit,
 ) {
     Chapter("How you felt") {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -131,15 +138,6 @@ internal fun LetterChapters(
         SinceLastLines(SinceLast.of(period.noun, letter.stats, letter.previousStats, letter.hadEarlier))
     }
 
-    if (period !is RecapPeriod.Week && (letter.topPeople.isNotEmpty() || letter.topTopics.isNotEmpty())) {
-        Chapter("Who and what came up most") {
-            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                if (letter.topPeople.isNotEmpty()) Mentions("People", letter.topPeople, period)
-                if (letter.topTopics.isNotEmpty()) Mentions("Topics", letter.topTopics, period)
-            }
-        }
-    }
-
     if (letter.places.isNotEmpty()) {
         Chapter("Where you were") {
             val most = letter.places.maxOf { it.days }
@@ -156,6 +154,9 @@ internal fun LetterChapters(
             }
         }
     }
+
+    // Counted live from the entries' tags, so it is right even for a letter written before them.
+    Chapter("Patterns") { PatternsChapter(patterns, onOpenPatterns) }
 }
 
 /**
@@ -176,7 +177,7 @@ internal fun MoodBar(mood: Mood?, isFuture: Boolean, modifier: Modifier = Modifi
 /** "Mon · Tue · Fri" within a week, "16 Nov · 21 Nov" over longer periods. Each opens its day. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DayChips(period: RecapPeriod, days: List<LocalDate>, onOpenDay: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
+internal fun DayChips(period: RecapPeriod, days: List<LocalDate>, onOpenDay: (LocalDate) -> Unit, modifier: Modifier = Modifier) {
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         days.forEach { date ->
             Chip(
@@ -287,12 +288,12 @@ private fun DayByDay(period: RecapPeriod, letter: RecapLetter, onOpenDay: (Local
 private fun WeekdayMoods(byWeekday: Map<DayOfWeek, Mood?>) {
     val locale = Locale.getDefault()
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        MetaText("Your usual mood on each day of the week")
+        MetaText("Your average mood on each day of the week")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             DayOfWeek.entries.forEach { day ->
                 val mood = byWeekday[day]
                 val label = "${day.getDisplayName(TextStyle.FULL, locale)}s: " +
-                    (mood?.let(SinceLast::moodWord) ?: "no mood")
+                    (mood?.let { "average mood ${SinceLast.moodWord(it)}" } ?: "no mood")
                 Column(
                     Modifier.weight(1f).clearAndSetSemantics { contentDescription = label },
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -347,7 +348,7 @@ private fun SinceLastLines(chapter: SinceLast.Chapter) {
 }
 
 @Composable
-private fun DirectionIcon(direction: Direction, modifier: Modifier = Modifier) {
+internal fun DirectionIcon(direction: Direction, modifier: Modifier = Modifier) {
     Icon(
         when (direction) {
             Direction.UP -> LineIcons.ArrowUp
@@ -364,25 +365,26 @@ private fun DirectionIcon(direction: Direction, modifier: Modifier = Modifier) {
     )
 }
 
-/** People or topics, most days first, with an arrow against the period before when there is one. */
+/**
+ * The end of every letter: one sentence, the top three topics as small bars (every
+ * value tied for the top in Rose), and a way into Patterns for the same period.
+ */
 @Composable
-private fun Mentions(title: String, mentions: List<Mention>, period: RecapPeriod) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = AppType.TitleSmall, color = Palette.Muted)
-        mentions.forEach { mention ->
-            Row(Modifier.semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.CenterVertically) {
-                BodyText(mention.name, Modifier.weight(1f))
-                Text(days(mention.count), style = AppType.Value, color = Palette.Ink)
-                Box(Modifier.padding(start = 10.dp).width(40.dp), contentAlignment = Alignment.CenterEnd) {
-                    val direction = mention.direction
-                    when {
-                        mention.previous == 0 -> Text("new", style = AppType.Tab, color = Palette.Rose)
-                        direction != null -> DirectionIcon(direction)
-                    }
-                }
-            }
+internal fun PatternsChapter(patterns: Patterns?, onOpen: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        BodyText(PatternsWords.chapter(patterns))
+        val topics = patterns?.takeIf { it.hasEnough }?.topics.orEmpty().take(3)
+        if (topics.isNotEmpty()) {
+            val top = topics.maxOf { it.count }
+            CountBars(
+                topics.map { Bar(it.name, it.count, top = it.count == top) },
+                barHeight = 8.dp,
+                countWidth = 76.dp,
+                unit = ::days,
+                labelWidth = 136.dp,
+            )
         }
-        if (mentions.any { it.previous != null }) MetaText("Arrows compare with last ${period.noun}.")
+        TextAction("Open Patterns", onOpen, Modifier.offset(x = (-12).dp))
     }
 }
 
