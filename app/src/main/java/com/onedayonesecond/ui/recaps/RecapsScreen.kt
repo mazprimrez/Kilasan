@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -94,6 +95,7 @@ import java.util.Locale
 fun RecapsScreen(
     onOpenRecap: (RecapPeriod) -> Unit,
     onOpenPixels: (Int) -> Unit,
+    onOpenPatterns: (RecapPeriod) -> Unit,
     onSettings: () -> Unit,
     viewModel: RecapsViewModel = viewModel(factory = RecapsViewModel.Factory),
 ) {
@@ -118,6 +120,10 @@ fun RecapsScreen(
                 state = state,
                 onOpenRecap = onOpenRecap,
                 onOpenPixels = { onOpenPixels(year) },
+                onOpenPatterns = {
+                    // This year opens on the week under way; an earlier one on the whole year.
+                    onOpenPatterns(if (year == state.today.year) RecapPeriod.weekOf(state.today) else RecapPeriod.Year(year))
+                },
             )
         }
     }
@@ -171,6 +177,7 @@ private fun YearPage(
     state: RecapsUiState,
     onOpenRecap: (RecapPeriod) -> Unit,
     onOpenPixels: () -> Unit,
+    onOpenPatterns: () -> Unit,
 ) {
     val today = state.today
     val yearPeriod = RecapPeriod.Year(year)
@@ -206,6 +213,23 @@ private fun YearPage(
         ) {
             PixelGlyph()
             Text("Year in pixels", style = AppType.Body, color = Palette.Ink, modifier = Modifier.weight(1f).padding(start = 12.dp))
+            Icon(LineIcons.ChevronRight, contentDescription = null, tint = Palette.Muted, modifier = Modifier.size(20.dp))
+        }
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(Corners.Chip)
+                .clickable(role = Role.Button, onClick = onOpenPatterns)
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PatternsGlyph()
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text("Patterns", style = AppType.Body, color = Palette.Ink)
+                Text("What you wrote about, when, and how those days felt", style = AppType.Meta, color = Palette.Muted)
+            }
             Icon(LineIcons.ChevronRight, contentDescription = null, tint = Palette.Muted, modifier = Modifier.size(20.dp))
         }
 
@@ -282,6 +306,24 @@ private fun YearLetter(recap: Recap?, year: Int, kept: Int, isThisYear: Boolean,
                 tint = Palette.Rose,
                 modifier = Modifier.padding(start = 8.dp).size(18.dp),
             )
+        }
+    }
+}
+
+/** Six 6 dp squares with 2 dp between: the width of [PixelGlyph]. */
+private val PixelGlyphWidth = 46.dp
+
+/** Three little bars, the tallest in Rose: Patterns, in miniature. Decorative. */
+@Composable
+private fun PatternsGlyph() {
+    Row(
+        // As wide as the pixel glyph above it, so the two rows line up.
+        Modifier.width(PixelGlyphWidth).height(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        listOf(0.55f to Palette.BlushDeep, 1f to Palette.Rose, 0.75f to Palette.BlushDeep).forEach { (h, c) ->
+            Box(Modifier.weight(1f).fillMaxHeight(h).clip(RoundedCornerShape(1.dp)).background(c))
         }
     }
 }

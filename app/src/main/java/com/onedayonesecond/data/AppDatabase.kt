@@ -18,8 +18,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         Book::class,
         BookThought::class,
         BookSummary::class,
+        EntryTag::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -32,6 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun deletedClipDao(): DeletedClipDao
 
     abstract fun bookDao(): BookDao
+
+    abstract fun tagDao(): TagDao
 
     companion object {
         /**
@@ -100,7 +103,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        /**
+         * Version 6 adds the tags Patterns counts from (topics, habits and people per
+         * entry). A new table only; entries are tagged in the background afterwards.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                JournalSchema.MIGRATION_5_6_SQL.forEach(db::execSQL)
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 
         fun build(context: Context): AppDatabase =
             Room.databaseBuilder(

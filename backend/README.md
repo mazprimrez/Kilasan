@@ -1,9 +1,10 @@
 # Journal backend
 
 A small FastAPI service for Cloud Run. It sits between the app and Gemini on Vertex AI
-and does four things: types out voice notes, types out notebook and pen pages, writes
-the weekly, monthly and yearly recaps, and writes a book's summary and review ideas
-from the thoughts logged while reading it. What the app sends and gets back is in
+and does five things: types out voice notes, types out notebook and pen pages, writes
+the weekly, monthly and yearly recaps, writes a book's summary and review ideas from
+the thoughts logged while reading it, and tags entries with the topics, habits and
+people that Patterns counts. What the app sends and gets back is in
 [docs/JOURNAL_BACKEND.md](../docs/JOURNAL_BACKEND.md).
 
 | Path | What lives there |
@@ -14,8 +15,10 @@ from the thoughts logged while reading it. What the app sends and gets back is i
 | `app/transcription.py` | `transcribe(audio, mime_type)`: the only place that knows who transcribes |
 | `app/extraction.py` | Page image to text |
 | `app/recap.py` | Recap request, reply shape and the quote check |
+| `app/tag.py` | `/tag`: entries to topics, habits and people, checked against what was sent |
 | `app/book_recap.py` | Book summary request, reply shape, and the checks on the quote and the points |
 | `prompts/recap.md` | The recap prompt. Edit it and redeploy; no code changes |
+| `prompts/tag.md` | The tagging prompt |
 | `prompts/book_recap.md` | The book summary prompt. The same |
 | `tests/samples/` | A sample week, month and year of entries, and a sample book with its thoughts |
 

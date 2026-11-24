@@ -64,6 +64,7 @@ import com.onedayonesecond.ui.gallery.GalleryDayScreen
 import com.onedayonesecond.ui.home.HomeScreen
 import com.onedayonesecond.ui.home.RecentlyDeletedScreen
 import com.onedayonesecond.ui.recaps.PixelsScreen
+import com.onedayonesecond.ui.patterns.PatternsScreen
 import com.onedayonesecond.ui.recaps.RecapScreen
 import com.onedayonesecond.ui.recaps.RecapsScreen
 import com.onedayonesecond.ui.reel.ReelScreen
@@ -215,6 +216,7 @@ private fun androidx.navigation.NavGraphBuilder.destinations(
         RecapsScreen(
             onOpenRecap = { nav.navigate(Routes.recap(it)) },
             onOpenPixels = { nav.navigate(Routes.pixels(it)) },
+            onOpenPatterns = { nav.navigate(Routes.patterns(it)) },
             onSettings = { nav.navigate(Routes.SETTINGS) },
         )
     }
@@ -406,6 +408,25 @@ private fun androidx.navigation.NavGraphBuilder.destinations(
             onOpenDay = { nav.navigate(Routes.day(it)) },
             onOpenPixels = { nav.navigate(Routes.pixels(it)) },
             onWrite = { nav.navigate(Routes.write(it)) },
+            onOpenPatterns = { nav.navigate(Routes.patterns(it)) },
+        )
+    }
+
+    screen(
+        Routes.PATTERNS_PATTERN,
+        padding,
+        listOf(navArgument(Routes.ARG_KEY) { type = NavType.StringType }),
+    ) {
+        PatternsScreen(
+            onBack = { nav.popBackStack() },
+            onOpenPeriod = { period ->
+                // Like the letters: stepping between periods replaces the page, so Back leaves Patterns.
+                nav.popBackStack()
+                nav.navigate(Routes.patterns(period))
+            },
+            onOpenDay = { nav.navigate(Routes.day(it)) },
+            onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+            onOpenPixels = { nav.navigate(Routes.pixels(it)) },
         )
     }
 

@@ -100,22 +100,7 @@ object JournalMath {
     }
 
     /**
-     * On how many days [name] appears in what was written, as a whole word and ignoring
-     * case ("Ibu" counts in "sama ibu", not in "ibukota"). Counted on the phone from the
-     * full entries, so a person's count is a fact and not the model's estimate.
-     */
-    fun daysMentioning(name: String, days: Collection<DaySummary>): Int {
-        val word = name.trim()
-        if (word.isEmpty()) return 0
-        val pattern = Regex(
-            "(?<![\\p{L}\\p{N}])" + Regex.escape(word) + "(?![\\p{L}\\p{N}])",
-            setOf(RegexOption.IGNORE_CASE),
-        )
-        return days.count { day -> day.texts.any { pattern.containsMatchIn(it) } }
-    }
-
-    /**
-     * The usual mood of each weekday over a month or a year: the average of that
+     * The average mood of each weekday over a month or a year: the average of that
      * weekday's moods, rounded the way "Since last …" rounds. Null for a weekday without
      * any mood.
      */

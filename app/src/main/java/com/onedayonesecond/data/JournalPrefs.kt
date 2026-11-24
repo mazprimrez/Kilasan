@@ -95,6 +95,20 @@ class JournalPrefs(context: Context) {
         dataStore.edit { it[TAG_PLACES] = enabled }
     }
 
+    /** Whether Patterns shows the people entries mention. On, until switched off in Settings → Recaps. */
+    val showPeopleInPatterns: Flow<Boolean> = safeData.map { it[SHOW_PEOPLE] ?: true }
+
+    suspend fun setShowPeopleInPatterns(enabled: Boolean) {
+        dataStore.edit { it[SHOW_PEOPLE] = enabled }
+    }
+
+    /** Whether tagging entries for Patterns was stopped in Settings. Nothing is sent until it is resumed. */
+    val taggingStopped: Flow<Boolean> = safeData.map { it[TAGGING_STOPPED] ?: false }
+
+    suspend fun setTaggingStopped(stopped: Boolean) {
+        dataStore.edit { it[TAGGING_STOPPED] = stopped }
+    }
+
     /** When the last backup to Google Drive finished, in epoch milliseconds. Null before the first. */
     val lastBackupAt: Flow<Long?> = safeData.map { it[LAST_BACKUP_AT] }
 
@@ -217,6 +231,8 @@ class JournalPrefs(context: Context) {
         private val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
         private val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
         private val TAG_PLACES = booleanPreferencesKey("tag_places")
+        private val SHOW_PEOPLE = booleanPreferencesKey("show_people_in_patterns")
+        private val TAGGING_STOPPED = booleanPreferencesKey("tagging_stopped")
         private val LAST_BACKUP_AT = longPreferencesKey("last_backup_at")
         private const val DRAFT_PREFIX = "thought_draft_"
         private val NAME = stringPreferencesKey("name")

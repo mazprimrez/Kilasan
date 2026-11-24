@@ -1,5 +1,7 @@
 package com.onedayonesecond.ui.settings
 
+import com.onedayonesecond.ui.theme.ProgressLine
+import com.onedayonesecond.journal.EntryTagger
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -162,6 +164,14 @@ fun SettingsScreen(
                     icon = LineIcons.Recaps,
                     trailing = { Chevron() },
                 )
+                SwitchRow(
+                    "Show people in Patterns",
+                    state.showPeople,
+                    viewModel::setShowPeople,
+                    subtitle = "The names you write about, and how often they come up",
+                    icon = LineIcons.Person,
+                )
+                state.tagging?.let { progress -> TaggingRow(progress, state.taggingStopped, viewModel::setTaggingStopped) }
             }
 
             Section("Reminder") {
@@ -399,4 +409,37 @@ private fun Context.openAppSettings() {
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
+}
+
+/**
+ * How far tagging entries for Patterns has got: a progress line while older entries
+ * are still being tagged, and Stop or Resume. Tagging carries on when the page is left.
+ */
+@Composable
+private fun TaggingRow(progress: EntryTagger.Progress, stopped: Boolean, onStopped: (Boolean) -> Unit) {
+    val subtitle = when {
+        progress.total == 0 -> "Entries are tagged with their topics, habits and people as you write"
+        progress.done -> "All ${progress.total} entries are tagged"
+        stopped -> "Stopped at ${progress.tagged} of ${progress.total}. Nothing is sent until you resume."
+        else -> "${progress.tagged} of ${progress.total} entries tagged. Needs a connection."
+    }
+    Column {
+        ActionRow(
+            "Tags for Patterns",
+            onClick = null,
+            subtitle = subtitle,
+            icon = LineIcons.Bars,
+            trailing = if (progress.done && !stopped) {
+                null
+            } else {
+                { TextAction(if (stopped) "Resume" else "Stop", { onStopped(!stopped) }) }
+            },
+        )
+        if (!progress.done && progress.total > 0) {
+            ProgressLine(
+                progress.tagged.toFloat() / progress.total,
+                Modifier.padding(start = 72.dp, end = ScreenPadding, bottom = 8.dp),
+            )
+        }
+    }
 }

@@ -3,6 +3,8 @@ package com.onedayonesecond.backup
 import com.onedayonesecond.data.EntryType
 import com.onedayonesecond.data.Mood
 import com.onedayonesecond.data.Recap
+import com.onedayonesecond.journal.TagHash
+import com.onedayonesecond.journal.TagSet
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -172,5 +174,47 @@ class JournalFileTest {
         assertEquals("a week is filed where it is listed", YearMonth.of(2026, 10), DriveLayout.recapFolder("week-2026-09-28"))
         assertEquals(YearMonth.of(2026, 10), DriveLayout.recapFolder("month-2026-10"))
         assertNull(DriveLayout.recapFolder("year-2026"))
+    }
+
+    // Tags for Patterns
+
+    private val tags = TagsBackup(TagHash.of("Coffee before work.")!!, TagSet(listOf("Work"), emptyList(), listOf("Raka")))
+
+    @Test
+    fun `an entry's tags survive being written to its file and read back`() {
+        val tagged = day.copy(entries = listOf(written.copy(tags = tags), voice))
+
+        val read = JournalFile.decodeDay(JournalFile.encodeDay(tagged))!!
+
+        assertEquals(tagged, read)
+        assertEquals(tags, read.entries.first { it.type == EntryType.WRITTEN }.tags)
+    }
+
+    @Test
+    fun `a backup from before tags reads with no tags, and an untagged day keeps its bytes`() {
+        val old = """{"date": "2026-11-16", "entries": [{"createdAt": 1000, "type": "WRITTEN", "text": "Coffee before work."}]}"""
+
+        val read = JournalFile.decodeDay(old.toByteArray())!!
+
+        assertNull(read.entries.single().tags)
+        assertTrue(!String(JournalFile.encodeDay(day)).contains("tags"))
+    }
+
+    @Test
+    fun `tags without a hash are not trusted`() {
+        val file = """{"date": "2026-11-16", "entries": [{"createdAt": 1000, "type": "WRITTEN", "text": "a", "tags": {"topics": ["Work"]}}]}"""
+
+        assertNull(JournalFile.decodeDay(file.toByteArray())!!.entries.single().tags)
+    }
+
+    @Test
+    fun `an entry not tagged yet on the phone keeps Drive's tags while its words are the same`() {
+        val remote = DayBackup(date, null, null, listOf(written.copy(tags = tags)))
+
+        val kept = JournalSync.mergeDay(remote, DayBackup(date, null, null, listOf(written)))
+        val edited = JournalSync.mergeDay(remote, DayBackup(date, null, null, listOf(written.copy(text = "Tea instead."))))
+
+        assertEquals(tags, kept.entries.single().tags)
+        assertNull(edited.entries.single().tags)
     }
 }

@@ -154,7 +154,7 @@ class RecapGenerator(
         // If it is not in them, one is taken from them directly.
         val quote = JournalMath.verifyQuote(draft.quote, days, draft.quoteDate)
             ?: JournalMath.fallbackQuote(days)
-        val letter = withNumbers(draft.letter, period, days, previousStats, previousLetter, earliest())
+        val letter = withNumbers(draft.letter, period, days, previousStats, earliest())
         journal.replaceRecap(
             Recap(
                 key = period.key,
@@ -179,37 +179,19 @@ class RecapGenerator(
 
         /**
          * Puts the phone's own numbers into a letter the model wrote: the stats of this
-         * period and the one before, days per place for a year, and how many days each
-         * person came up on (counted in the entries; the model's estimate is kept only for
-         * topics, and for a name that does not appear word for word).
+         * period and the one before, and days per place for a year.
          */
         fun withNumbers(
             letter: RecapLetter,
             period: RecapPeriod,
             days: List<DaySummary>,
             previousStats: PeriodStats?,
-            previousLetter: RecapLetter?,
             earliest: LocalDate?,
-        ): RecapLetter {
-            fun compare(mentions: List<Mention>, before: List<Mention>?, recount: Boolean): List<Mention> {
-                val earlier = before?.associate { it.name.lowercase() to it.count }
-                return mentions.map { mention ->
-                    val counted = if (recount) JournalMath.daysMentioning(mention.name, days) else 0
-                    mention.copy(
-                        count = if (counted > 0) counted else mention.count,
-                        previous = earlier?.let { it[mention.name.lowercase()] ?: 0 },
-                    )
-                }.sortedByDescending { it.count }
-            }
-            val longer = period !is RecapPeriod.Week
-            return letter.copy(
-                topPeople = if (longer) compare(letter.topPeople, previousLetter?.topPeople, recount = true) else emptyList(),
-                topTopics = if (longer) compare(letter.topTopics, previousLetter?.topTopics, recount = false) else emptyList(),
-                places = if (period is RecapPeriod.Year) JournalMath.daysPerCity(days.map { it.place }) else emptyList(),
-                stats = PeriodStats.of(days),
-                previousStats = previousStats,
-                hadEarlier = earliest != null && earliest.isBefore(period.start),
-            )
-        }
+        ): RecapLetter = letter.copy(
+            places = if (period is RecapPeriod.Year) JournalMath.daysPerCity(days.map { it.place }) else emptyList(),
+            stats = PeriodStats.of(days),
+            previousStats = previousStats,
+            hadEarlier = earliest != null && earliest.isBefore(period.start),
+        )
     }
 }

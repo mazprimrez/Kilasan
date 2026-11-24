@@ -70,4 +70,26 @@ class JournalSchemaTest {
             for ((name, column) in cols) assertEquals("$table.$name", column, after.getValue(table)[name])
         }
     }
+
+    @Test
+    fun `the migration to version 6 creates the tags table and its indices exactly as Room does`() {
+        val file = File("schemas/com.onedayonesecond.data.AppDatabase/6.json")
+        val entities = JSONObject(file.readText()).getJSONObject("database").getJSONArray("entities")
+        val tags = (0 until entities.length()).map { entities.getJSONObject(it) }.single { it.getString("tableName") == "entry_tags" }
+        val create = tags.getString("createSql").replace("\${TABLE_NAME}", "entry_tags")
+        assertEquals(create, JournalSchema.MIGRATION_5_6_SQL[0])
+        val indices = tags.getJSONArray("indices")
+        val expected = (0 until indices.length()).map {
+            indices.getJSONObject(it).getString("createSql").replace("\${TABLE_NAME}", "entry_tags")
+        }.toSet()
+        assertEquals(expected, JournalSchema.MIGRATION_5_6_SQL.drop(1).toSet())
+    }
+
+    @Test
+    fun `version 6 leaves every table of version 5 exactly as it was`() {
+        val before = columns(5)
+        val after = columns(6)
+        assertEquals(before.keys + "entry_tags", after.keys)
+        for ((table, cols) in before) assertEquals(table, cols, after.getValue(table))
+    }
 }

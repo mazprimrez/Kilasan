@@ -106,6 +106,37 @@ data class Recap(
 }
 
 /**
+ * One thing an entry is about, as the AI service tagged it: a topic ("Work"), a habit
+ * ("Gym") or a person ("Mama"). Patterns counts these on the phone; the model only
+ * names them. [sourceHash] is `TagHash.of` the entry's words when it was tagged, so an
+ * entry whose words changed since is tagged again, and its old tags are not counted.
+ *
+ * An entry that was tagged and is about nothing in particular keeps one row of kind
+ * [KIND_NONE], so it is not sent again until its words change.
+ */
+@Entity(
+    tableName = "entry_tags",
+    indices = [Index("entryId"), Index("kind", "value")],
+)
+data class EntryTag(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val entryId: Long,
+    /** [KIND_TOPIC], [KIND_HABIT], [KIND_PERSON] or [KIND_NONE]. */
+    val kind: String,
+    /** Normalized, e.g. "Work", "Gym", "Mama". Empty for [KIND_NONE]. */
+    val value: String,
+    val taggedAt: Long,
+    val sourceHash: String,
+) {
+    companion object {
+        const val KIND_TOPIC = "topic"
+        const val KIND_HABIT = "habit"
+        const val KIND_PERSON = "person"
+        const val KIND_NONE = "none"
+    }
+}
+
+/**
  * A second that was deleted or replaced. Its video sits in the trash folder until it
  * is restored or thirty days have passed, so deleting is never the point of no return.
  */
@@ -143,5 +174,18 @@ object JournalSchema {
         "ALTER TABLE `recaps` ADD COLUMN `sourceHash` TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE `recaps` ADD COLUMN `entryCount` INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE `recaps` ADD COLUMN `previousJson` TEXT",
+    )
+
+    /**
+     * Version 6 adds the tags Patterns counts from. Only a new table: entries that exist
+     * have no tags yet and are tagged in the background. The statements must match
+     * app/schemas/.../6.json; a unit test compares them.
+     */
+    val MIGRATION_5_6_SQL = listOf(
+        "CREATE TABLE IF NOT EXISTS `entry_tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+            "`entryId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `value` TEXT NOT NULL, " +
+            "`taggedAt` INTEGER NOT NULL, `sourceHash` TEXT NOT NULL)",
+        "CREATE INDEX IF NOT EXISTS `index_entry_tags_entryId` ON `entry_tags` (`entryId`)",
+        "CREATE INDEX IF NOT EXISTS `index_entry_tags_kind_value` ON `entry_tags` (`kind`, `value`)",
     )
 }

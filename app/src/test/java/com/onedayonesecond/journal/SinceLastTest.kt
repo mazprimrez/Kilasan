@@ -48,7 +48,7 @@ class SinceLastTest {
                 SinceLast.Line(Direction.UP, "Days kept went up from 3 to 7."),
                 SinceLast.Line(Direction.SAME, "Days written stayed at 5."),
                 SinceLast.Line(Direction.UP, "Words went up from 1,204 to 2,310."),
-                SinceLast.Line(Direction.UP, "Your mood was mostly good, up from mostly bad.", Mood.GOOD),
+                SinceLast.Line(Direction.UP, "Your average mood was good, up from bad.", Mood.GOOD),
             ),
             got,
         )
@@ -57,15 +57,15 @@ class SinceLastTest {
     @Test
     fun `mood is shown as a word, and moves only when the word does`() {
         assertEquals(
-            SinceLast.Line(Direction.SAME, "Your mood stayed mostly good.", Mood.GOOD),
+            SinceLast.Line(Direction.SAME, "Your average mood stayed good.", Mood.GOOD),
             SinceLast.moodLine(3.6, 4.1),
         )
         assertEquals(
-            SinceLast.Line(Direction.DOWN, "Your mood was mostly neutral, down from mostly great.", Mood.NEUTRAL),
+            SinceLast.Line(Direction.DOWN, "Your average mood was neutral, down from great.", Mood.NEUTRAL),
             SinceLast.moodLine(4.8, 3.14),
         )
         // No mood last week: no comparison, just this week's word.
-        assertEquals(SinceLast.Line(null, "Your mood was mostly good.", Mood.GOOD), SinceLast.moodLine(null, 3.5))
+        assertEquals(SinceLast.Line(null, "Your average mood was good.", Mood.GOOD), SinceLast.moodLine(null, 3.5))
         // No mood this week: no line at all.
         assertNull(SinceLast.moodLine(3.0, null))
     }
@@ -85,7 +85,7 @@ class SinceLastTest {
         chapter as SinceLast.Chapter.Alone
         assertEquals("Your first week in Kilasan.", chapter.heading)
         assertEquals(
-            listOf("7 days kept", "5 days written", "2,310 words", "Your mood was mostly good"),
+            listOf("7 days kept", "5 days written", "2,310 words", "Your average mood was good"),
             chapter.totals.map { it.text },
         )
         assertTrue(chapter.totals.all { it.direction == null })

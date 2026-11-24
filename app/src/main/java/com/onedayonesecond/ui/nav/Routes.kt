@@ -41,6 +41,7 @@ object Routes {
     const val PEN_PATTERN = "pen/{$ARG_DATE}"
     const val RECAP_PATTERN = "recap/{$ARG_KEY}"
     const val PIXELS_PATTERN = "pixels/{$ARG_YEAR}"
+    const val PATTERNS_PATTERN = "patterns/{$ARG_KEY}"
 
     /** No entry to edit: the write screen starts a new one. */
     const val NO_ENTRY = -1L
@@ -63,6 +64,8 @@ object Routes {
     fun recap(period: RecapPeriod) = "recap/${period.key}"
 
     fun pixels(year: Int) = "pixels/$year"
+
+    fun patterns(period: RecapPeriod) = "patterns/${period.key}"
 
     fun book(bookId: Long) = "book/$bookId"
 

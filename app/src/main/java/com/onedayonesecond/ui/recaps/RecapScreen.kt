@@ -127,6 +127,7 @@ fun RecapScreen(
     onOpenDay: (LocalDate) -> Unit,
     onOpenPixels: (Int) -> Unit,
     onWrite: (LocalDate) -> Unit,
+    onOpenPatterns: (RecapPeriod) -> Unit,
     viewModel: RecapViewModel = viewModel(factory = RecapViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -293,7 +294,9 @@ fun RecapScreen(
             when (status) {
                 is RecapStatus.Ready -> when {
                     status.letter != null ->
-                        LetterChapters(period, status.letter, state.name, state.moods, onOpenDay)
+                        LetterChapters(period, status.letter, state.name, state.moods, state.patterns, onOpenDay) {
+                            onOpenPatterns(period)
+                        }
                     status.content != null -> Chapters(period, status.content, state.name)
                 }
                 RecapStatus.Loading -> Unit
@@ -350,7 +353,7 @@ private fun RewriteDialog(period: RecapPeriod, onConfirm: () -> Unit, onDismiss:
 
 /** Week, Month, Year: the same page at three lengths. Choosing one opens the period that holds this one. */
 @Composable
-private fun PeriodTabs(period: RecapPeriod, today: LocalDate, onOpen: (RecapPeriod) -> Unit) {
+internal fun PeriodTabs(period: RecapPeriod, today: LocalDate, onOpen: (RecapPeriod) -> Unit) {
     val tabs = listOf(
         Triple("Week", period is RecapPeriod.Week) { onOpen(period.asWeek(today)) },
         Triple("Month", period is RecapPeriod.Month) { onOpen(period.asMonth(today)) },
@@ -376,7 +379,7 @@ private fun PeriodTabs(period: RecapPeriod, today: LocalDate, onOpen: (RecapPeri
 }
 
 /** The week this period is, or the latest week of it that has begun. */
-private fun RecapPeriod.asWeek(today: LocalDate): RecapPeriod.Week = when (this) {
+internal fun RecapPeriod.asWeek(today: LocalDate): RecapPeriod.Week = when (this) {
     is RecapPeriod.Week -> this
     is RecapPeriod.Month -> RecapPeriod.weeksOf(month).let { weeks ->
         weeks.lastOrNull { !it.start.isAfter(today) } ?: weeks.first()
@@ -385,25 +388,25 @@ private fun RecapPeriod.asWeek(today: LocalDate): RecapPeriod.Week = when (this)
         if (year == today.year) RecapPeriod.weekOf(today) else RecapPeriod.weeksOf(YearMonth.of(year, 12)).last()
 }
 
-private fun RecapPeriod.asMonth(today: LocalDate): RecapPeriod.Month = when (this) {
+internal fun RecapPeriod.asMonth(today: LocalDate): RecapPeriod.Month = when (this) {
     is RecapPeriod.Week -> RecapPeriod.Month(month)
     is RecapPeriod.Month -> this
     is RecapPeriod.Year -> RecapPeriod.Month(if (year == today.year) YearMonth.from(today) else YearMonth.of(year, 12))
 }
 
-private fun RecapPeriod.asYear(): RecapPeriod.Year = when (this) {
+internal fun RecapPeriod.asYear(): RecapPeriod.Year = when (this) {
     is RecapPeriod.Week -> RecapPeriod.Year(month.year)
     is RecapPeriod.Month -> RecapPeriod.Year(month.year)
     is RecapPeriod.Year -> this
 }
 
-private fun frameKind(clip: ClipEntity?, isFuture: Boolean) = when {
+internal fun frameKind(clip: ClipEntity?, isFuture: Boolean) = when {
     clip != null -> FrameKind.Kept
     isFuture -> FrameKind.Future
     else -> FrameKind.Missed
 }
 
-private fun frameState(clip: ClipEntity?, mood: Mood?, isFuture: Boolean) = when {
+internal fun frameState(clip: ClipEntity?, mood: Mood?, isFuture: Boolean) = when {
     isFuture -> "Not yet"
     else -> listOf(
         if (clip != null) "Second kept" else "No second",

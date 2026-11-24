@@ -9,7 +9,6 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
-import java.time.YearMonth
 import java.time.ZoneOffset
 
 class RecapLetterTest {
@@ -28,8 +27,7 @@ class RecapLetterTest {
             stillOpen = listOf(DatedNote("Bug di checkout.", monday.plusDays(3))),
             note = "A note.",
             question = "Which one?",
-            topPeople = listOf(Mention("Ibu", 3, previous = 1), Mention("Raka", 2, previous = null)),
-            topTopics = listOf(Mention("Kerjaan", 5, previous = 0)),
+            summary = "On Monday the gym, on Saturday the talk.",
             places = listOf(PlaceDays("Jakarta Selatan", 6)),
             stats = PeriodStats(7, 6, 2310, 3.6),
             previousStats = null,
@@ -54,7 +52,7 @@ class RecapLetterTest {
              "threads": [{"title": "Tech Cantik", "line": "Prepared, then spoke.", "days": ["2026-11-18", "2026-11-21"]}],
              "dayByDay": [{"date": "2026-11-16", "line": "Gym."}],
              "wins": [], "stillOpen": [], "note": "A note.", "question": "Q?",
-             "topPeople": [], "topTopics": [],
+             "summary": "  Gym on Monday, the talk on Saturday.  ",
              "stats": {"daysKept": 99}, "places": [{"name": "Mars", "days": 3}]}
             """,
         )
@@ -68,6 +66,18 @@ class RecapLetterTest {
         assertEquals(2, draft.letter.threads.single().days.size)
         assertEquals(0, draft.letter.stats.daysKept)
         assertTrue(draft.letter.places.isEmpty())
+        assertEquals("Gym on Monday, the talk on Saturday.", draft.letter.summary)
+    }
+
+    @Test
+    fun `a letter written before the summary existed reads with an empty one and ignores its people and topics`() {
+        val old = """{"note": "N", "topPeople": [{"name": "Ibu", "count": 4}], "topTopics": []}"""
+
+        val letter = RecapLetter.decode(old)
+
+        assertEquals("", letter.summary)
+        assertEquals("N", letter.note)
+        assertTrue(!letter.encode().contains("topPeople"))
     }
 
     @Test
@@ -110,48 +120,22 @@ class RecapLetterTest {
     }
 
     @Test
-    fun `people are counted on the phone and compared with the period before`() {
-        val month = RecapPeriod.Month(YearMonth.of(2026, 11))
-        val days = listOf(
-            DaySummary(monday, texts = listOf("Makan sama Ibu."), entryCount = 1),
-            DaySummary(monday.plusDays(1), texts = listOf("ibu telpon"), entryCount = 1),
-            DaySummary(monday.plusDays(2), texts = listOf("Ke ibukota naik kereta."), entryCount = 1),
-            DaySummary(monday.plusDays(3), texts = listOf("Kerja."), entryCount = 1),
-        )
-        val letter = RecapLetter(
-            topPeople = listOf(Mention("Raka", 4), Mention("Ibu", 9)),
-            topTopics = listOf(Mention("Kerjaan", 2)),
-        )
-        val before = RecapLetter(topPeople = listOf(Mention("ibu", 1)), topTopics = listOf(Mention("Kerjaan", 2)))
-
-        val got = RecapGenerator.withNumbers(letter, month, days, previousStats = null, previousLetter = before, earliest = null)
-
-        // "Ibu" is in two days' words (not counted inside "ibukota"); the model's 9 is replaced.
-        // "Raka" is never written word for word, so the model's estimate stays.
-        assertEquals(listOf(Mention("Raka", 4, previous = 0), Mention("Ibu", 2, previous = 1)), got.topPeople)
-        assertEquals(listOf(Mention("Kerjaan", 2, previous = 2)), got.topTopics)
-        assertEquals(Direction.SAME, got.topTopics.single().direction)
-    }
-
-    @Test
-    fun `a week has no people or topics, and a year has places`() {
-        val letter = RecapLetter(topPeople = listOf(Mention("Ibu", 1)))
+    fun `a year has places and a week has none`() {
         val days = listOf(DaySummary(monday, place = "Kemang, Jakarta Selatan", entryCount = 1))
 
-        assertTrue(RecapGenerator.withNumbers(letter, week, days, null, null, null).topPeople.isEmpty())
-        val year = RecapGenerator.withNumbers(letter, RecapPeriod.Year(2026), days, null, null, null)
+        assertTrue(RecapGenerator.withNumbers(RecapLetter(), week, days, null, null).places.isEmpty())
+        val year = RecapGenerator.withNumbers(RecapLetter(), RecapPeriod.Year(2026), days, null, null)
         assertEquals(listOf(PlaceDays("Jakarta Selatan", 1)), year.places)
-        assertNull(year.topPeople.single().previous)
     }
 
     @Test
     fun `the stats are this period's own, and whether anything came before is remembered`() {
         val days = listOf(DaySummary(monday, hasClip = true, texts = listOf("satu dua tiga"), entryCount = 1))
-        val got = RecapGenerator.withNumbers(RecapLetter(), week, days, PeriodStats(2, 1, 9, null), null, earliest = monday.minusDays(30))
+        val got = RecapGenerator.withNumbers(RecapLetter(), week, days, PeriodStats(2, 1, 9, null), earliest = monday.minusDays(30))
 
         assertEquals(PeriodStats(1, 1, 3, null), got.stats)
         assertEquals(PeriodStats(2, 1, 9, null), got.previousStats)
         assertTrue(got.hadEarlier)
-        assertEquals(false, RecapGenerator.withNumbers(RecapLetter(), week, days, null, null, earliest = monday).hadEarlier)
+        assertEquals(false, RecapGenerator.withNumbers(RecapLetter(), week, days, null, earliest = monday).hadEarlier)
     }
 }

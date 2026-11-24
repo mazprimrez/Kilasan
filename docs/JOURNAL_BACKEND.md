@@ -164,17 +164,20 @@ Reply:
   "stillOpen": [{"text": "Review PR Raka belum dikerjain.", "date": "2026-11-19"}],
   "note": "One short paragraph, without a greeting.",
   "question": "You wrote about comfort vs adrenaline. Which one were you looking for this week?",
-  "topPeople": [],
-  "topTopics": []
+  "summary": "The week opened with gym on Monday and a deadlift PR on Tuesday. ... You gave the talk on Saturday."
 }
 ```
 
-`topPeople` and `topTopics` (`{name, count}`) are only filled for a month or a year;
+`summary` is one paragraph of what happened, in time order, naming concrete days,
+people and events, with no numbers, advice or judgement (3–6 sentences for a week, up
+to 8 for a month or year); Patterns shows it under "The week, in short". Which people
+and topics came up is counted on the phone from `/tag` (the recap used to return
+`topPeople`/`topTopics`; it no longer does, and the app ignores them in old letters).
 `dayByDay` is empty for a year. Before it answers, the backend
 (`backend/app/recap.py`):
 
 - **parses** the model's answer with a Pydantic model. If it does not parse (or
-  `title`, `note` or `question` is blank) it asks once more with the errors fed back,
+  `title`, `note`, `question` or `summary` is blank) it asks once more with the errors fed back,
   then answers 502;
 - **checks the quote**: it must be an exact, continuous piece of one entry's text on
   `quote.date` (only whitespace may differ, and quotation marks around it are
@@ -184,9 +187,54 @@ Reply:
   `wins` and `stillOpen` must be inside the period and a day with entries. Days that
   are not are removed; a thread with no day left, and a win or open item with a bad
   date, is dropped;
-- cuts threads to 4, wins to 3, open items to 4, people and topics to 5.
+- cuts threads to 4, wins to 3, open items to 4.
 
 So one recap is at most three model calls.
+
+### `POST /v1/tag`
+
+Gives entries the topics, habits and people that Patterns counts. Body:
+
+```json
+{
+  "entries": [
+    {"id": 41, "date": "2026-11-17", "text": "Gym lagi, PR deadlift 80kg! Nggak nyangka bisa."},
+    {"id": 42, "date": "2026-11-17", "text": "Standup tadi Raka minta review PR checkout sebelum Jumat."}
+  ],
+  "vocabulary": {"topics": ["Work", "Public speaking"], "habits": ["Gym"], "people": ["Raka", "Ibu"]}
+}
+```
+
+- 1–20 entries, each with a unique integer `id` and non-blank `text` (cut to 4000
+  characters). `vocabulary` lists the names already in use, most used first (up to
+  300 per kind), so the same thing keeps one spelling. Anything else is a 400.
+
+Reply:
+
+```json
+{"tags": [
+  {"entryId": 41, "topics": ["Fitness"], "habits": ["Gym"], "people": []},
+  {"entryId": 42, "topics": ["Work"], "habits": [], "people": ["Raka"]}
+]}
+```
+
+Before it answers, the backend (`backend/app/tag.py`, prompt
+[`backend/prompts/tag.md`](../backend/prompts/tag.md)):
+
+- parses the answer with Pydantic; one retry with the errors fed back, then 502;
+- keeps only ids it was sent (the first answer per id), in the order sent; an entry
+  the model left out is simply missing, and the app asks again later;
+- tidies names (spaces squashed, punctuation trimmed at the ends, first letter
+  capital, at most 40 characters), spells them as the vocabulary does when they match
+  ignoring case, spaces, `-` and `_`, removes repeats, and caps topics at 3, habits
+  at 3, people at 8;
+- keeps a person only if the name appears in the entry as a whole word or is in the
+  vocabulary (so the model cannot invent one).
+
+Topics are short English nouns; habits only things actually done (not plans); people
+are names as written, not groups or public figures. An empty list is a fine answer:
+the app stores an entry tagged with nothing as tagged, so it is not sent again. One
+call per request; the usage log line has `feature: "tag"`.
 
 ### The recap prompt
 

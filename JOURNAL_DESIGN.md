@@ -169,7 +169,8 @@ undo, and it stays in Recently deleted for 30 days."). Close button at the botto
   default focus. (`ClipMoveRules` / `ClipAlreadyExistsException` already cover the logic.)
 ### Recaps tab (new)
 - Big year number (84 sp) with an arrow and swipe to earlier years.
-- The year's recap (title + quote), then "Year in pixels".
+- The year's recap (title + quote), then "Year in pixels", then "Patterns" (this
+  year: opens on the week under way; an earlier year: opens on that year).
 - "Months and weeks": one row per month (tap → month recap) with an expand toggle
   "4 weeks" that shows week chips ("9 to 15 Nov", tap → week recap). The current
   month says "Letter arrives on 1 December"; the current week chip says "on Sunday".
@@ -198,12 +199,18 @@ White, one rose action, hairlines between chapters, no cards. Top to bottom
 9. **A question for next week/month/year**: one open question built from an entry.
 10. **Since last week/month/year**: counted on the phone (`SinceLast`): "went up from
     3 to 7", "went down from 7 to 5", "stayed at 7" with the same/up/down icon; mood as
-    a face and a word ("mostly good"). With no previous period with days kept: "Your
+    a face and a word ("Your average mood was good, up from neutral"; never "mostly"). With no previous period with days kept: "Your
     first week in Kilasan." (or "Nothing was kept last week to compare with." after a
     gap) and this period's totals.
-11. Month and year: **Who and what came up most**, people and topics with the number
-    of days and an arrow (or "new") against the period before. Year: **Where you were**.
-12. Footer: "A reflection from your own entries, not therapy."
+11. Year: **Where you were**.
+12. **Patterns** (every scale): one sentence ("Public speaking and Work came up most,
+    on 4 days each."), the top 3 topics as small bars with "4 days" in mono (every
+    value tied for the top in Rose, the rest deeper blush), and "Open Patterns", which
+    opens Patterns for the same period. Counted live from the tags, so a letter
+    written before tags existed still gets it. Before anything has come up on 2 days:
+    "Patterns show up after a few days." and the link only. (This replaced "Who and
+    what came up most"; old letters' `topPeople`/`topTopics` are ignored.)
+13. Footer: "A reflection from your own entries, not therapy."
 
 Under the title, a Muted line when the letter no longer matches the entries ("You've
 added 2 entries since this was written.", or "Your entries changed since this was
@@ -224,6 +231,97 @@ entries ("You've written on 1 day this week. Write on 3 or more…" + "Write abo
 today"), couldn't be written ("Your phone was offline on Sunday night. Your entries
 are safe" + "Write the letter now"), rewriting (old letter visible), rewrite failed
 (old letter kept + reason + Try again).
+
+### Patterns (`ui/patterns/`, new)
+Descriptive counts of what a week, month or year was about, when, with whom and how
+those days felt. Styled by `docs/KILASAN_DESIGN_SYSTEM.md`; screenshots in
+`docs/screenshots/patterns.png` (seeded 16–22 Nov 2026). Everything is counted on the
+phone by `PatternsCalculator` (pure, `journal/PatternsCalculator.kt`) from entries,
+moods, places and entry tags; every heading and sentence comes from templates in
+`journal/PatternsText.kt`, never from the model. Route `patterns/{periodKey}`.
+
+Top to bottom:
+1. Back bar "Patterns", Week / Month / Year tabs, the period with arrows (next is
+   off until that period has begun). Dates: "9–15 November 2026", "1–16 November
+   2026" (a month under way stops at today), "January–16 November 2026".
+2. A summary line, Title Large with 30 sp line height, from the numbers ("Work came
+   up most, on 6 of your 11 days with entries. Your average mood was good.").
+3. Muted: "From 9 to 15 November: 6 days with entries, 14 entries. Counted on your
+   phone." While older entries are still being tagged: "Still tagging your entries:
+   40 of 120 done. Counts may grow."
+4. The quote from the stored letter of the same period, slanted on Blush Tint, with
+   the Rose link "You, Saturday 14 November ›" inside the card (opens the day). Never
+   generated here; left out when there is no letter.
+5. "The week in short" / "November so far, in short" / "The year so far, in short",
+   labelled "**Summary** · written from your own entries.": the letter's `summary`
+   paragraph, as written.
+6. Sections, hairlines between, laid out as the Patterns boards of the design canvas.
+   Each: a Title Large heading that states the finding ("Gym days felt better",
+   "Work Tuesday to Thursday, gym Friday to Sunday"), a label with the section's name
+   in Rose and what the chart counts in Muted ("**Habits** · found in your entries
+   when you mention them."), the chart, a plain sentence (14 sp Ink) and sometimes a
+   footnote (12 sp Muted).
+   - **Week**: *Your week* (a table: the 7 frames head 7 columns, then Topics /
+     Habits / People rows with name and count, a Rose dot under each day it came up
+     and a small dot under the others), *Mood* (no chart: "Your mood climbed from
+     Tuesday to Sunday", lowest and highest day in the label, the first habit's
+     mood against other days in the sentence), *When* ("9 of 14 entries came after
+     17:00"; Morning 05–11, Afternoon 11–17, Evening 17–22, Late night 22–05, each
+     with its hours in mono under the name, a bar on a pale track), *Since last week*
+     (topics and habits: "Gym went up from 2 to 3 days.", "Work stayed at 3 days.",
+     ups first, then the same, then downs, at most 4).
+   - **Month**: *Topics* (stacked rows: name and "7 days", a full-width bar, "↑ 3 more
+     than 1–16 Oct" and a chevron; a row expands to weekday columns, a sentence and
+     day chips "Mon 2"), *Mood and topics*, *Habits* (a strip of all the month's
+     days: Rose = did it, Blush Tint = wrote but not it, dashed = no entry, thin
+     outline = still to come; ticks 01 08 15 22 29; then "On gym days" / "Other
+     days" cards with face, mood and "Average of 5 days"), *People* (strips, then
+     "Turn off in Settings"), *Mood by weekday* (7 tinted tiles: face, word, "2d"),
+     *When*, *Places*, *Words*.
+   - **Year**: *Topics × months* (numbered heat grid, one Rose shading scale shared
+     with the people grid; months ahead outlined, "December hasn't happened yet."),
+     *Mood and topics*, *Habits* (12 columns per habit), *People × months* (then "Turn
+     off in Settings"), *Mood by month* (tiles in 6 columns, then "See every day in
+     Year in pixels ›"), *When* (each part's name over Jan–Jun and Jul–Nov bars once
+     the year reaches July), *Places*, *Words*.
+   - *Places* uses the full place name ("Kemang, Jakarta Selatan") with a pin, its
+     days, and the average mood's face and word; *Words* are chips, the top word on
+     Blush, the rest on Blush Tint.
+7. Footer (12 sp Muted): week "A week is short: patterns here are single days, not
+   habits. The month view shows what repeats." and "See November’s patterns ›", month
+   "Patterns need at least 2 days to show. Counts update when you edit an entry.", year
+   "Patterns are counts from your own entries, not conclusions about you."
+
+**Mood and topics**: topics sorted from the best average mood to the worst; an axis of
+five muted faces; each row a track with a rule at the usual mood ("usual: good"), a
+line to a dot at the topic's average: filled Rose = above usual, hollow Muted =
+below. Wherever a mood sits beside a topic or habit the sentence ends "Showing up on
+the same day isn't proof that one caused the other."
+
+Honesty rules (all in the calculator, all unit-tested):
+- Every count covers exactly the range in the header.
+- Comparisons use the same span of the period before: a whole period against the
+  whole one before; a week under way against the same weekdays; a month under way
+  against days 1–N of the month before (cut to its last day); a year under way
+  against 1 January–the same date last year (29 Feb → 28 Feb).
+- Moods are averages of the scores (rough 1 … great 5), rounded half up to a mood;
+  above/below compares averages rounded to tenths. Never "mostly".
+- Nothing that rests on fewer than 2 days is shown: a topic, habit, person, word or
+  place needs 2 days; a weekday, month, place or habit/other-days mood needs 2 days
+  with a mood, otherwise "Too few" (dashed circle).
+- Top lists: most days first, ties A–Z ignoring case; topics 8, habits 5, people 8,
+  places 6, words 12. Names written in other capitals count as one.
+- Weekdays, months and parts of the day in the phone's time zone.
+- Charts: one series in Rose; top value Rose, the rest deeper blush (`BlushDeep`),
+  counts in mono; every chart has a full text description for TalkBack.
+- Words leave out English and Indonesian stop words (slang included) and digits; with
+  people switched off their names leave the words too.
+
+**Empty** (nothing on 2 days yet): the week as seven small frames (today outlined in
+Rose), "Patterns show up after a few days", "You have 1 day with entries so far this
+month. Keep adding seconds and entries; topics, habits and people appear once
+something comes up on 2 or more days.", and a tonal "See October’s patterns" / "See
+last week’s patterns". No counted line and no footer.
 
 ### Year in pixels (new)
 - One column per month, one row per day, cells colored by mood; no entry = outline;
@@ -265,6 +363,10 @@ each row with its icon in a tinted circle:
   15 recaps". While it runs: "7 of 15 written", a progress line and Stop (keeps what
   is written); the same with Stop in a notification. Its row in Settings shows the
   progress while it runs.
+  "Show people in Patterns" switch (on by default; off hides People sections and
+  people's names in Words). "Tags for Patterns": "All 25 entries are tagged", or
+  "40 of 120 entries tagged. Needs a connection." with a progress line and Stop /
+  Resume ("Stopped at 40 of 120. Nothing is sent until you resume.").
 - **Your data**: "Recently deleted" (with its count) and "About Kilasan".
 ### Books tab (new)
 - Title "Books", + at top right opens Add a book.
@@ -371,7 +473,29 @@ change: edited by hand, cleared, or typed out) and the four recap columns above
 (existing recaps become layout 1). A recap is out of date when the fingerprint of its
 period today (`RecapSource.hash`) differs from `sourceHash`. Layout 2's `json` keeps
 the model's words plus the phone's numbers at the time of writing: the stats of the
-period and the one before, people/topic counts and days per place.
+period and the one before and days per place (a year). From version 6 it also keeps
+the model's `summary`; letters written before have none and old `topPeople` /
+`topTopics` are ignored.
+
+Version 6 (migration 5 → 6, `JournalSchema.MIGRATION_5_6_SQL`) adds one table:
+
+```kotlin
+@Entity(tableName = "entry_tags", indices = [Index("entryId"), Index("kind", "value")])
+data class EntryTag(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val entryId: Long,
+    val kind: String,        // "topic", "habit", "person", or "none" (tagged, nothing found)
+    val value: String,       // "Work", "Gym", "Raka"; "" for none
+    val taggedAt: Long,
+    val sourceHash: String,  // TagHash.of(text): SHA-256 of the trimmed, space-squashed words
+)
+```
+
+A tag counts only while its `sourceHash` matches the entry's words as they are now, so
+an edited entry's old tags stop counting at once and it is tagged again. Deleting an
+entry deletes its tags in the same transaction (`TagDao.deleteEntry`). An entry
+needs tags when it has words, is done being typed out, and has no tag row for its
+current hash.
  
 Books (same migration, or 3 → 4 if the diary part has already shipped):
  
@@ -433,6 +557,10 @@ data class BookSummary(
   and the replaced version (`previous`); an entry carries `updatedAt` only when it was
   edited after it was made (so untouched days keep their bytes). Restore reads files
   with and without these fields: a recap file without `schemaVersion` is layout 1.
+  Version 6: each entry in its day file carries its tags while they match its words,
+  `"tags": {"hash", "topics", "habits", "people"}` (keyed to the entry, since ids
+  change on restore). Restore puts them back when the hash still matches; files
+  without `tags`, or tags without a hash, restore untagged and get tagged again.
 ## AI (Gemini via the backend)
  
 - Python FastAPI backend on Cloud Run, Gemini through Vertex AI with the service
@@ -453,13 +581,26 @@ data class BookSummary(
   time, type, text or transcript, place), the mood per day, its own stats for this and
   the previous period, and the previous recap's threads. The model returns title,
   quote {text, date}, howYouFelt {text, days}, threads, dayByDay, wins, stillOpen,
-  note, question, and for month/year topPeople/topTopics. Rules: specific over
+  note, question and summary (one paragraph of what happened, in time order, facts
+  only, no numbers; shown by Patterns under "… in short"). Rules: specific over
   generic, no invented facts, no diagnosis, no to-dos, written in English (the quote
   stays in the entry's own words), note and question tied to concrete details. The backend checks the
   answer with Pydantic (one retry on a schema error), requires the quote to be an exact
   piece of an entry on its date (one retry with the error, then picks one itself), and
   drops any day outside the period or without entries. Every number on the page is
   worked out on the phone. Details in docs/JOURNAL_BACKEND.md.
+- Tags (`POST /tag`): up to 20 entries {id, date, text} plus the vocabulary already
+  in use (topics, habits, people, most used first) → `{tags: [{entryId, topics[],
+  habits[], people[]}]}`. Topics are short English nouns (at most 3), habits only
+  things actually done, people only names written in the entry (or a vocabulary name
+  for the same person). The backend checks with Pydantic (one retry), keeps only ids
+  it was sent, spells names as the vocabulary does, and drops people who are neither
+  in the text nor the vocabulary. Same `GEMINI_MODEL`.
+- Tagging runs in the background (`TagWorker`): when entries change (debounced 5 s)
+  and on first start over every older entry, oldest first, 20 per request, 1.5 s
+  apart, up to 30 batches per run, only online, with exponential backoff; tags are
+  stored only if the entry's words did not change meanwhile. Progress, Stop and
+  Resume in Settings → Recaps.
 - Re-recap: "Write this recap again" on a recap (old one kept for Undo), and
   Settings → Recaps → past weeks and months, written oldest first, one request at a
   time, 5 s apart, as a WorkManager chain that waits for a connection.

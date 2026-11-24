@@ -33,6 +33,6 @@ Write these parts:
 
 9. `question`: one open question for the next period, built from something they actually wrote, for example: "You wrote about comfort vs adrenaline. Which one were you looking for this week?" Not a yes/no question and not advice in disguise.
 
-10. `topPeople` and `topTopics`: only for a month or a year (empty lists for a week). Up to five people they wrote about most, by the name they use ("Ibu", "Raka"), and up to five topics, each with `count`: the number of days it came up on. For people use their name exactly as written in the entries.
+10. `summary`: one paragraph of what happened in the period, in time order, from the first day to the last. Name concrete days, people and events from the entries ("On Monday the deadline moved to Wednesday; you sent the deck that night. Dinner with Ibu in Kemang on Friday, then a 5K at GBK on Saturday."). Plain English, facts only: no advice, no diagnosis, no judgement, no numbers or counts. Three to six sentences for a week, up to eight for a month or a year (pick the turning points, do not list every day).
 
 Days: refer to days by weekday within a week ("Tuesday") and by date in a month or a year ("14 Nov").

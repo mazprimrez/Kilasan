@@ -3,7 +3,9 @@
 The model writes the chapters; this module holds it to them before anything reaches
 the phone: the answer must parse, the quote must be the user's own words, and every
 date must point at a day in the period that has entries. All numbers the recap shows
-("Since last week") are worked out on the phone, never here and never by the model.
+("Since last week", the Patterns chapter) are worked out on the phone, never here and
+never by the model. Which people and topics came up is counted on the phone from the
+tags /tag gives each entry, so the recap no longer names them.
 """
 
 import datetime
@@ -30,7 +32,6 @@ PERIODS = ("week", "month", "year")
 MAX_THREADS = 4
 MAX_WINS = 3
 MAX_OPEN = 4
-MAX_NAMED = 5
 MIN_QUOTE = 8
 MAX_QUOTE = 160
 
@@ -69,11 +70,6 @@ class DatedText(BaseModel):
     date: str
 
 
-class Named(BaseModel):
-    name: str
-    count: int = 0
-
-
 class RecapAnswer(BaseModel):
     title: NonBlank
     quote: Quote
@@ -84,8 +80,8 @@ class RecapAnswer(BaseModel):
     stillOpen: list[DatedText] = Field(default_factory=list)
     note: NonBlank
     question: NonBlank
-    topPeople: list[Named] = Field(default_factory=list)
-    topTopics: list[Named] = Field(default_factory=list)
+    # What happened, in time order. Patterns shows it under "The week, in short".
+    summary: NonBlank
 
 
 def _obj(properties: dict, required: list[str]) -> dict:
@@ -95,7 +91,6 @@ def _obj(properties: dict, required: list[str]) -> dict:
 _STR = {"type": "STRING"}
 _DAYS = {"type": "ARRAY", "items": _STR}
 _DATED = _obj({"text": _STR, "date": _STR}, ["text", "date"])
-_NAMED = _obj({"name": _STR, "count": {"type": "INTEGER"}}, ["name", "count"])
 
 SCHEMA = _obj(
     {
@@ -108,10 +103,9 @@ SCHEMA = _obj(
         "stillOpen": {"type": "ARRAY", "items": _DATED},
         "note": _STR,
         "question": _STR,
-        "topPeople": {"type": "ARRAY", "items": _NAMED},
-        "topTopics": {"type": "ARRAY", "items": _NAMED},
+        "summary": _STR,
     },
-    ["title", "quote", "howYouFelt", "threads", "dayByDay", "wins", "stillOpen", "note", "question", "topPeople", "topTopics"],
+    ["title", "quote", "howYouFelt", "threads", "dayByDay", "wins", "stillOpen", "note", "question", "summary"],
 )
 
 
@@ -215,7 +209,6 @@ def _shape(answer: RecapAnswer, quote: tuple[str, str], period: str, valid: set[
         days = _unique(d for d in thread.days if ok(d))
         if days and thread.title.strip() and thread.line.strip():
             threads.append({"title": thread.title.strip(), "line": thread.line.strip(), "days": days})
-    longer = period in ("month", "year")
     day_by_day = sorted(
         ({"date": line.date, "line": line.line.strip()} for line in answer.dayByDay if ok(line.date) and line.line.strip()),
         key=lambda line: line["date"],
@@ -237,20 +230,8 @@ def _shape(answer: RecapAnswer, quote: tuple[str, str], period: str, valid: set[
         ],
         "note": answer.note.strip(),
         "question": answer.question.strip(),
-        "topPeople": _named(answer.topPeople) if longer else [],
-        "topTopics": _named(answer.topTopics) if longer else [],
+        "summary": answer.summary.strip(),
     }
-
-
-def _named(items: list[Named]) -> list[dict]:
-    seen: set[str] = set()
-    out = []
-    for item in items:
-        name = item.name.strip()
-        if name and name.casefold() not in seen:
-            seen.add(name.casefold())
-            out.append({"name": name, "count": max(item.count, 0)})
-    return out[:MAX_NAMED]
 
 
 def _schema_feedback(error: ValidationError) -> str:

@@ -7,8 +7,13 @@ import com.onedayonesecond.work.BackfillWork
 import com.onedayonesecond.work.BookWork
 import com.onedayonesecond.work.JournalWork
 import com.onedayonesecond.work.Reminders
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 @UnstableApi
 class OneDayApp : Application() {
 
@@ -42,5 +47,23 @@ class OneDayApp : Application() {
             // Books added by hand or offline still waiting for a cover get another go.
             if (container.books.booksMissingCover().isNotEmpty()) BookWork.fetchCoversWhenOnline(this@OneDayApp)
         }
+        container.appScope.launch {
+            // Tags for Patterns: whenever an entry is added, deleted or has its words changed
+            // (written, edited, typed out, restored), and once at start for anything not yet
+            // tagged, which is how entries written before tags existed get theirs.
+            combine(container.journal.observeEntriesVersion(), container.journalPrefs.taggingStopped) { v, stopped -> v to stopped }
+                .distinctUntilChanged()
+                .debounce(TAG_SETTLE_MS)
+                .collect { (_, stopped) ->
+                    if (!stopped && container.entryTagger.isConfigured && container.entryTagger.pending().isNotEmpty()) {
+                        JournalWork.tagWhenOnline(this@OneDayApp)
+                    }
+                }
+        }
+    }
+
+    private companion object {
+        /** Typing a few entries in a row starts one run, not one per entry. */
+        const val TAG_SETTLE_MS = 5_000L
     }
 }

@@ -33,6 +33,9 @@ interface JournalAi {
 
     /** Writes a book's summary and review ideas from the thoughts in [request] and returns its JSON. */
     suspend fun writeBookRecap(request: JSONObject): JSONObject
+
+    /** The topics, habits and people of up to 20 entries (see `TagRequest`). */
+    suspend fun tag(request: JSONObject): JSONObject
 }
 
 /** The backend answered, but with an error. [retryable] means trying later may work. */
@@ -68,6 +71,9 @@ class BackendJournalAi(baseUrl: String, private val tokens: AccessTokens) : Jour
 
     override suspend fun writeBookRecap(request: JSONObject): JSONObject =
         post("/v1/book-recap", "application/json; charset=UTF-8") { request.toString().toByteArray(Charsets.UTF_8) }
+
+    override suspend fun tag(request: JSONObject): JSONObject =
+        post("/v1/tag", "application/json; charset=UTF-8") { request.toString().toByteArray(Charsets.UTF_8) }
 
     private fun JSONObject.text(): String = optString("text").trim()
 
